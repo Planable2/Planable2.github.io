@@ -1,0 +1,67 @@
+# ดึงราคาน้ำมันจากเว็บ PTT OR เองทุกวัน แล้วส่งเข้าระบบ (แทนโปรแกรม Windows เดิม)
+# ตั้งค่า: GitHub repo › Settings › Secrets and variables › Actions
+#   Variables: API_URL (ลิงก์เดียวกับ keepalive.yml)
+#   Secrets:   FUEL_API_KEY (ค่าเดียวกับ Supabase Edge Function Secret ชื่อ FUEL_API_KEY)
+name: fuel-price
+on:
+  schedule:
+    - cron: '0 1 * * *'   # 08:00 น. เวลาไทยทุกวัน
+  workflow_dispatch:
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ดึงราคาจาก PTT OR แล้วส่งเข้า fuelIngest
+        env:
+          API_URL: ${{ vars.API_URL }}
+          FUEL_API_KEY: ${{ secrets.FUEL_API_KEY }}
+        run: |
+          set -e
+          YEAR_BE=$(( $(TZ=Asia/Bangkok date +%Y) + 543 ))
+          MONTH=$(TZ=Asia/Bangkok date +%-m)
+          ROWS="[]"
+
+          # $1=ไฟล์ตอบกลับ(JSON) $2=path ของแถวแรก (".data.rows[0]" หรือ ".data[0]") $3=ชื่อจังหวัดที่จะบันทึก
+          parse() {
+            local resp="$1" path="$2" label="$3"
+            local row
+            row=$(echo "$resp" | jq -c --arg prov "$label" '
+              '"$path"' as $r
+              | ($r.priceData | map(select(.OilTypeId=="ดีเซล")) | .[0].Price) as $diesel
+              | ($r.priceData | map(select(.OilTypeId=="เบนซินแก๊สโซฮอล์ 95")) | .[0].Price) as $g95
+              | [
+                  {date: $r.priceDate[0:10], province: $prov, fuel: "ดีเซล", price: $diesel, source: "PTT OR"},
+                  {date: $r.priceDate[0:10], province: $prov, fuel: "แก๊สโซฮอล์ 95", price: $g95, source: "PTT OR"}
+                ]')
+            ROWS=$(echo "$ROWS" | jq -c --argjson add "$row" '. + $add')
+          }
+
+          fetch_regional() {
+            local resp
+            resp=$(curl -sS -X POST https://www.pttor.com/wp-admin/admin-ajax.php \
+              --data-urlencode "action=fetch_regional_oil_prices" \
+              --data-urlencode "province=$1" \
+              --data-urlencode "district=$2" \
+              --data-urlencode "month=$MONTH" \
+              --data-urlencode "year=$YEAR_BE")
+            parse "$resp" ".data.rows[0]" "$1"
+          }
+          fetch_bkk() {
+            local resp
+            resp=$(curl -sS -X POST https://www.pttor.com/wp-admin/admin-ajax.php \
+              --data-urlencode "action=fetch_oil_prices" \
+              --data-urlencode "province=กรุงเทพมหานคร" \
+              --data-urlencode "month=$MONTH" \
+              --data-urlencode "year=$YEAR_BE")
+            parse "$resp" ".data[0]" "กรุงเทพฯ"
+          }
+
+          fetch_regional "แพร่" "เมืองแพร่"
+          fetch_regional "น่าน" "เมืองน่าน"
+          fetch_regional "พะเยา" "เมืองพะเยา"
+          fetch_regional "เชียงราย" "เมืองเชียงราย"
+          fetch_bkk
+
+          echo "แถวที่จะส่ง: $ROWS"
+          BODY=$(jq -n --argjson rows "$ROWS" --arg key "$FUEL_API_KEY" '{action:"fuelIngest", key:$key, rows:$rows}')
+          curl -sS -X POST -H 'Content-Type: text/plain' -d "$BODY" "$API_URL"
