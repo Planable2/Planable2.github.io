@@ -8,6 +8,7 @@ import { loginView } from './views/login.js';
 import * as Home from './views/home.js';
 import * as Plans from './views/plans.js';
 import * as Meetings from './views/meetings.js';
+import * as Leaves from './views/leaves.js';
 import * as Orders from './views/orders.js';
 import * as Files from './views/files.js';
 import * as People from './views/people.js';
@@ -19,6 +20,7 @@ const ROUTES = {
   plans: { mod: Plans, title: 'ทะเบียนแผน', nav: 'plans' },
   plan: { mod: Plans, fn: 'detail', title: 'รายละเอียดแผน', nav: 'plans' },
   meetings: { mod: Meetings, title: 'ปฏิทินประชุม', nav: 'meetings' },
+  leaves: { mod: Leaves, title: 'ปฏิทินวันลา', nav: 'leaves' },
   orders: { mod: Orders, title: 'งานสั่งการ', nav: 'orders' },
   files: { mod: Files, title: 'คลังเอกสาร', nav: 'files' },
   fuel: { mod: Misc, fn: 'fuel', title: 'ราคาน้ำมัน', nav: 'fuel' },
@@ -88,6 +90,7 @@ function menu() {
     { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(can('edit_plan') ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },
     { k: 'meetings', label: 'ปฏิทินประชุม', href: 'meetings', cols: [['ปฏิทิน', 'big', [['ปฏิทินเดือนนี้', 'meetings'], ...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : [])]]] },
+    { k: 'leaves', label: 'ปฏิทินวันลา', href: 'leaves', cols: [['วันลา', 'big', [['ปฏิทินเดือนนี้', 'leaves'], ['ลงวันลา', 'leaves/new']]]] },
     { k: 'files', label: 'คลังเอกสาร', href: 'files', badge: f, cols: [['คลังเอกสาร', 'big', [['รอจัดหมวด', 'files'], ['เอกสารทั้งหมด', 'files/all']]]] },
     { k: 'fuel', label: 'ราคาน้ำมัน', href: 'fuel', cols: [] },
     { k: 'people', label: 'บุคลากร', href: 'people', badge: pu, cols: [['บุคลากร', 'big', [['โครงสร้างฝ่าย', 'people'], ['โปรไฟล์ของฉัน', 'profile']]]] }
@@ -99,7 +102,7 @@ function menu() {
 function shell(r) {
   const items = menu(), me = S.user;
   const bn = isGuest() ? [] : [['home', 'หน้าแรก', 'home', 'home'], ['plans', 'แผนงาน', 'list', 'plans'], ['meetings', 'ประชุม', 'cal', 'meetings'], ['orders', 'งานสั่งการ', 'task', 'orders'], ['more', 'เพิ่มเติม', 'more', 'more']];
-  const navKey = r.nav, moreKeys = ['files', 'fuel', 'people', 'profile', 'settings', 'more'];
+  const navKey = r.nav, moreKeys = ['files', 'fuel', 'people', 'profile', 'settings', 'leaves', 'more'];
   const o = myOpenOrders().length, more = isGuest() ? 0 : pendingFiles().length + (isAdmin() ? pendingUsers().length : 0);
   $('#app').innerHTML = `
   <header class="topnav" id="topnav">

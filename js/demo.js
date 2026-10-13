@@ -23,7 +23,9 @@ function seed() {
     cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1], ['วิศวกร', 1, 0, 1, 0, 0, 1], ['นายช่าง', 1, 0, 1, 0, 0, 1], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0], ['ผู้เยี่ยมชม', 0, 0, 0, 0, 0, 0]]
       .map((r) => ({ role: r[0], view_internal: !!r[1], edit_plan: !!r[2], update_status: !!r[3], manage_meeting: !!r[4], record_order: !!r[5], classify_file: !!r[6] })),
     cfg_Notify: [{ key: 'meet_new', name: 'ประชุมใหม่ / เลื่อน / ยกเลิก', value: 'ทันที', active: true }, { key: 'meet_morning', name: 'สรุปประชุมประจำวัน', value: '07:30', active: true }, { key: 'meet_before', name: 'เตือนก่อนประชุม', value: '30 นาที', active: true }, { key: 'file_reply', name: 'ตอบกลับเมื่อมีไฟล์ในกลุ่ม', value: 'ลิงก์ Drive + ลิงก์เว็บ', active: true }, { key: 'orders', name: 'งานสั่งการ', value: 'ไม่แจ้งใน LINE', active: false }],
-    cfg_Settings: [{ key: 'current_fiscal_year', value: 'auto', note: 'auto = คำนวณจากวันที่' }, { key: 'fiscal_start', value: '01-10', note: '' }, { key: 'lock_closed_years', value: 'TRUE', note: '' }, { key: 'fuel_provinces', value: 'แพร่, น่าน, พะเยา, เชียงราย, กรุงเทพฯ', note: '' }, { key: 'fuel_types', value: 'ดีเซล, แก๊สโซฮอล์ 95', note: '' }]
+    cfg_Settings: [{ key: 'current_fiscal_year', value: 'auto', note: 'auto = คำนวณจากวันที่' }, { key: 'fiscal_start', value: '01-10', note: '' }, { key: 'lock_closed_years', value: 'TRUE', note: '' }, { key: 'fuel_provinces', value: 'แพร่, น่าน, พะเยา, เชียงราย, กรุงเทพฯ', note: '' }, { key: 'fuel_types', value: 'ดีเซล, แก๊สโซฮอล์ 95', note: '' }],
+    cfg_LeaveKinds: [['sick', 'ลาป่วย', '#C96B5B'], ['personal', 'ลากิจส่วนตัว', '#D3A04A'], ['vacation', 'ลาพักผ่อน', '#5A9585'], ['maternity', 'ลาคลอดบุตร', '#9A7A9C'], ['ordain', 'ลาอุปสมบท', '#6585A6'], ['other', 'อื่นๆ', '#8C8475']]
+      .map((r) => ({ kind_id: r[0], name: r[1], color: r[2], active: true }))
   };
   const av = (k) => 'icons/avatars/av-' + k + '.svg';
   const Users = [
@@ -123,7 +125,12 @@ function seed() {
   const Fuel = [];
   const PROV = [['แพร่', 32.94, 37.75], ['น่าน', 33.14, 37.95], ['พะเยา', 33.04, 37.85], ['เชียงราย', 33.09, 37.90], ['กรุงเทพฯ', 32.04, 36.85]];
   for (let i = 14; i >= 0; i--) PROV.forEach((p) => { const dd = d(-i), w = Math.sin(i / 3) * 0.3; Fuel.push({ date: dd, province: p[0], fuel: 'ดีเซล', price: +(p[1] - w).toFixed(2), source: 'ตัวอย่าง' }, { date: dd, province: p[0], fuel: 'แก๊สโซฮอล์ 95', price: +(p[2] + w).toFixed(2), source: 'ตัวอย่าง' }); });
-  return { cfg, db: { Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel }, sessions: {} };
+  const Leaves = [
+    ['LV-0001', 'P03', 'vacation', d(3), d(5), 'พักผ่อนประจำปี'],
+    ['LV-0002', 'P04', 'sick', d(1), d(1), ''],
+    ['LV-0003', 'P06', 'personal', d(-2), d(-2), 'ธุระส่วนตัว']
+  ].map((r) => ({ leave_id: r[0], user_id: r[1], kind: r[2], date_from: r[3], date_to: r[4], note: r[5], created_by: r[1], created_at: nowIso() }));
+  return { cfg, db: { Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel, Leaves }, sessions: {} };
 }
 
 let DB = null;
@@ -237,6 +244,31 @@ const ACTIONS = {
     const D = db().db;
     if (!D.OrderAssignees.some((a) => a.order_id === p.order_id && a.user_id === u.user_id)) need(u, 'record_order', 'ย้ายได้เฉพาะผู้รับมอบงานนี้');
     const o = D.Orders.find((x) => x.order_id === p.order_id); o.status = p.status; persist(); return { order: o };
+  },
+  saveLeave: (p, u) => {
+    const D = db().db, elevated = T(u.is_admin) || ['หัวหน้า', 'ธุรการ'].includes(u.role);
+    const l = Object.assign({}, p.leave);
+    if (!l.date_from || !l.date_to) throw new Error('กรุณาเลือกวันที่');
+    if (String(l.date_to) < String(l.date_from)) throw new Error('วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม');
+    if (!db().cfg.cfg_LeaveKinds.some((k) => k.kind_id === l.kind)) throw new Error('ไม่รู้จักประเภทการลา');
+    if (l.leave_id) {
+      const old = D.Leaves.find((x) => x.leave_id === l.leave_id);
+      if (!old) throw new Error('ไม่พบรายการวันลา');
+      if (!elevated && old.user_id !== u.user_id) throw new Error('แก้ไขได้เฉพาะวันลาของตัวเอง');
+      l.user_id = old.user_id; delete l.created_by; delete l.created_at;
+    } else {
+      l.leave_id = nextId(D.Leaves, 'leave_id', 'LV-');
+      l.user_id = elevated && l.user_id ? l.user_id : u.user_id;
+      l.created_by = u.user_id; l.created_at = nowIso();
+    }
+    const saved = upsert(D.Leaves, 'leave_id', l); persist(); return { leave: saved };
+  },
+  deleteLeave: (p, u) => {
+    const D = db().db, row = D.Leaves.find((x) => x.leave_id === p.leave_id);
+    if (!row) throw new Error('ไม่พบรายการวันลา');
+    const elevated = T(u.is_admin) || ['หัวหน้า', 'ธุรการ'].includes(u.role);
+    if (!elevated && row.user_id !== u.user_id) throw new Error('ลบได้เฉพาะวันลาของตัวเอง');
+    D.Leaves = D.Leaves.filter((x) => x.leave_id !== row.leave_id); persist(); return { leave_id: row.leave_id };
   },
   classifyFile: (p, u) => { need(u, 'classify_file', 'บทบาทของคุณจัดหมวดไฟล์ไม่ได้'); const f = db().db.Files.find((x) => x.file_id === p.file_id); Object.assign(f, { category: p.category || '', link_type: p.link_type || '', link_id: p.link_id || '' }); persist(); return { file: f }; },
   updateProfile: (p, u) => { const f = p.fields || {}; ['nickname', 'phone', 'ext', 'email'].forEach((k) => { if (k in f) u[k] = String(f[k] || '').trim(); }); if (u.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u.email)) throw new Error('รูปแบบอีเมลไม่ถูกต้อง'); persist(); return { user: pub(u) }; },

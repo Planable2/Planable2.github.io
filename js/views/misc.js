@@ -12,6 +12,7 @@ export function more(main, arg, app) {
     <a href="#/files"><span class="ic">${icon('file')}</span><span class="grow"><b>คลังเอกสาร</b><br><span class="faint">ไฟล์จากกลุ่ม LINE${pf ? ' • รอจัดหมวด ' + pf : ''}</span></span>${pf ? `<span class="badge">${pf}</span>` : ''}${icon('chev', 16)}</a>
     <a href="#/fuel"><span class="ic">${icon('fuel')}</span><span class="grow"><b>ราคาน้ำมัน</b><br><span class="faint">${esc(setting('fuel_provinces', ''))}</span></span>${icon('chev', 16)}</a>
     <a href="#/people"><span class="ic">${icon('users')}</span><span class="grow"><b>บุคลากร</b><br><span class="faint">โครงสร้างฝ่าย${pu ? ' • รอยืนยันตัวตน ' + pu : ''}</span></span>${pu ? `<span class="badge">${pu}</span>` : ''}${icon('chev', 16)}</a>
+    <a href="#/leaves"><span class="ic">${icon('cal')}</span><span class="grow"><b>ปฏิทินวันลา</b><br><span class="faint">บันทึกวันลาของตัวเอง</span></span>${icon('chev', 16)}</a>
     ${isAdmin() ? `<a href="#/settings"><span class="ic">${icon('gear')}</span><span class="grow"><b>ตั้งค่าระบบ</b><br><span class="faint">เฉพาะผู้ดูแลระบบ • แนะนำใช้บนคอมพิวเตอร์</span></span>${icon('chev', 16)}</a>` : ''}
   </section>
   <button class="btn danger block" id="mo-out">${icon('out', 16)}ออกจากระบบ</button>
