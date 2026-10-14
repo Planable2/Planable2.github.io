@@ -1,62 +1,24 @@
-# ดึงราคาวัสดุจากกระทรวงพาณิชย์ (index-api.tpso.go.th) ทุกวัน แล้วส่งเข้าระบบ
-#   ยางมะตอย = ราคากรุงเทพฯ (ส่วนกลาง) • คอนกรีตผสมเสร็จ / ปูนซีเมนต์ = พาณิชย์จังหวัด แพร่ น่าน พะเยา เชียงราย
-#   แต่ละจังหวัดประกาศไม่พร้อมกัน → ย้อนทีละเดือนจนเจอเดือนล่าสุดของทุกจังหวัด (สูงสุด 6 เดือน)
-#   ราคาไม่รวม VAT • ส่งซ้ำได้
-# ตั้งค่า: ใช้ API_URL (Variables) และ FUEL_API_KEY (Secrets) ชุดเดียวกับ fuel-price.yml
+# ดึงราคาวัสดุจากกระทรวงพาณิชย์ทุกเช้า — ขั้นตอนจริงอยู่ใน tools/material-price.sh (แก้ไฟล์นั้นแทน ไม่ต้องแก้ไฟล์นี้)
+# ใช้ Variables: API_URL • Secrets: FUEL_API_KEY
 name: material-price
 on:
   schedule:
-    - cron: '20 1 * * *'   # 08:20 น. เวลาไทยทุกวัน
+    - cron: '20 1 * * *'   # 08:20 น. เวลาไทย
   workflow_dispatch:
     inputs:
       months:
-        description: 'ดึงอย่างน้อยกี่เดือน (นับเดือนนี้ด้วย • ใส่มากขึ้นเพื่อเก็บประวัติย้อนหลัง)'
-        default: '1'
+        description: 'ดึงอย่างน้อยกี่เดือน (ว่าง = อัตโนมัติ)'
+        required: false
+        default: ''
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
-      - name: ดึงราคาจากพาณิชย์ แล้วส่งเข้า matIngest
+      - uses: actions/checkout@v4
+      - name: ดึงราคาวัสดุแล้วส่งเข้าระบบ
         env:
           API_URL: ${{ vars.API_URL }}
           FUEL_API_KEY: ${{ secrets.FUEL_API_KEY }}
-          MONTHS: ${{ github.event.inputs.months || '1' }}
-        run: |
-          set -e
-          PROVS='["แพร่","น่าน","พะเยา","เชียงราย"]'
-          WANT='["กรุงเทพฯ","แพร่","น่าน","พะเยา","เชียงราย"]'
-          FOUND='[]'
-          DOCS='[]'
-          MID=$(TZ=Asia/Bangkok date +%Y-%m-15)
-          LIMIT=$(( MONTHS > 6 ? MONTHS : 6 ))
-          for ((i = 0; i < LIMIT; i++)); do
-            Y=$(date -d "$MID -$i month" +%Y); M=$(date -d "$MID -$i month" +%-m); PERIOD=$(date -d "$MID -$i month" +%Y-%m)
-            echo "ดึงเดือน $PERIOD (ไฟล์ใหญ่ ~8MB อาจใช้ 1-2 นาที)"
-            curl -sS --max-time 240 -X POST -H 'Content-Type: application/json' \
-              -d "{\"year\":$((Y + 543)),\"month\":$M}" https://index-api.tpso.go.th/OpenApi/CmiPrice/Month -o month.json || echo '[]' > month.json
-            ADD=$(jq -c --arg period "$PERIOD" --argjson provs "$PROVS" '
-              def nm: (.commodityNameTH // "") | gsub("\\s+"; " ") | sub("^ "; "") | sub(" $"; "");
-              def inprov: .typeName as $t | any($provs[]; . == $t);
-              def code: (.commodityCode // "");
-              if type != "array" then [] else
-              [ { kind: "asphalt", source: "พาณิชย์", period: $period, note: "ราคากรุงเทพฯ (ส่วนกลาง) • ไม่รวม VAT",
-                  prices: [ .[] | select(.type == "10" and .priceCur != null and (code | startswith("15050"))) | {code: .commodityCode, price: .priceCur, unit: .unitName} ] },
-                { kind: "concrete", source: "พาณิชย์จังหวัด", period: $period, note: "ไม่รวม VAT",
-                  prices: [ .[] | select(.priceCur != null and inprov and (nm | startswith("คอนกรีตผสมเสร็จ"))) | {item: nm, area: .typeName, price: .priceCur, unit: .unitName} ] },
-                { kind: "cement", source: "พาณิชย์จังหวัด", period: $period, note: "ไม่รวม VAT",
-                  prices: [ .[] | select(.priceCur != null and inprov and (code | (startswith("1501") or startswith("1502")))) | {item: nm, area: .typeName, price: .priceCur, unit: .unitName} ] }
-              ] | map(select(.prices | length > 0)) end' month.json)
-            GOT=$(echo "$ADD" | jq -c '[.[] | if .kind == "asphalt" then "กรุงเทพฯ" else .prices[].area end] | unique')
-            echo "  ได้ $(echo "$ADD" | jq '[.[].prices | length] | add // 0') รายการ • มีราคา: $GOT"
-            DOCS=$(echo "$DOCS" | jq -c --argjson add "$ADD" '. + $add')
-            FOUND=$(jq -cn --argjson f "$FOUND" --argjson g "$GOT" '$f + $g | unique')
-            LEFT=$(jq -cn --argjson w "$WANT" --argjson f "$FOUND" '$w - $f')
-            if [ $((i + 1)) -ge "$MONTHS" ] && [ "$LEFT" = "[]" ]; then echo "เจอเดือนล่าสุดครบทุกจังหวัดแล้ว"; break; fi
-          done
-          if [ "$LEFT" != "[]" ]; then echo "ย้อน $LIMIT เดือนแล้วยังไม่พบราคาของ: $LEFT"; fi
-
-          BODY=$(jq -n --argjson docs "$DOCS" --arg key "$FUEL_API_KEY" '{action:"matIngest", key:$key, docs:$docs}')
-          RES=$(curl -sS -X POST -H 'Content-Type: text/plain' -d "$BODY" "$API_URL")
-          echo "$RES"
-          echo "$RES" | jq -e '.ok == true' > /dev/null   # API ตอบ ok:false → ให้ workflow ขึ้นแดง
+          MONTHS: ${{ github.event.inputs.months }}
+        run: bash tools/material-price.sh
