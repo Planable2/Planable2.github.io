@@ -184,10 +184,11 @@ const ACTIONS = {
     if (u.status === 'locked') throw new Error('บัญชีนี้ถูกล็อก');
     return session(u);
   },
-  lineLogin: () => ({ needRegister: true, lineName: '[ชื่อใน LINE]', picture: '', candidates: db().db.Users.filter((x) => !x.has_line && x.role !== 'ผู้เยี่ยมชม').map((x) => ({ user_id: x.user_id, full_name: x.full_name, position: x.position, role: x.role })) }),
+  lineLogin: () => ({ needRegister: true, lineName: '[ชื่อใน LINE]', picture: '', candidates: db().db.Users.filter((x) => !x.has_line && !x._pw && x.role !== 'ผู้เยี่ยมชม').map((x) => ({ user_id: x.user_id, full_name: x.full_name, position: x.position, role: x.role })) }),
   lineRegister: (p) => {
     const u = db().db.Users.find((x) => x.user_id === p.user_id);
     if (!u || u.has_line) throw new Error('ชื่อนี้ถูกลงทะเบียนแล้ว');
+    if (u._pw) throw new Error('ชื่อนี้มีบัญชีอยู่แล้ว — เข้าด้วยชื่อผู้ใช้ แล้วเชื่อม LINE ที่หน้าโปรไฟล์');
     if (!/^[A-Za-z0-9._]{4,}$/.test(String(p.username || ''))) throw new Error('ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษ/ตัวเลข อย่างน้อย 4 ตัว');
     if (db().db.Users.some((x) => x.username && x.username.toLowerCase() === p.username.toLowerCase())) throw new Error('ชื่อผู้ใช้นี้มีคนใช้แล้ว');
     if (String(p.password || '').length < 8) throw new Error('รหัสผ่านอย่างน้อย 8 ตัวอักษร');

@@ -114,12 +114,11 @@ function exportPlans(rows) {
 function planForm(plan, app) {
   const isNew = !plan;
   const f = plan ? { ...plan, segs: plan.segs.map((s) => ({ road: s.road, from: kmText(s.km_from_m), to: kmText(s.km_to_m), side: s.side })) } : { fiscal_year: ui.year || currentFY(), unit: units()[1] ? units()[1].name : '', office: offices()[0] ? offices()[0].short : '', work_code: '', work_name: '', budget: '', budget_cut: '', note: '', segs: [{ road: '', from: '', to: '', side: 'LT.,RT.' }] };
-  const years = Array.from(new Set(planYears().concat([currentFY(), currentFY() + 1]))).sort((a, b) => b - a);
   const offOpts = (u) => offices().filter((o) => (unitOf(u).kind === 'เขต' ? o.scope !== 'เฉพาะแขวง' : o.scope !== 'เฉพาะเขต'));
   const draw = (dlg) => {
     dlg.innerHTML = `${modalHead(isNew ? 'ลงทะเบียนแผนงาน' : 'แก้ไขแผน ' + plan.plan_id, '1 แผน = 1 งาน • เพิ่มได้หลายช่วงสายทาง • กม. รูปแบบ 12+345')}
     <div class="fgrid">
-      <label class="f">ปีงบประมาณ *<select class="inp" data-k="fiscal_year">${years.map((y) => `<option ${Number(f.fiscal_year) === y ? 'selected' : ''}>${y}</option>`).join('')}</select></label>
+      <label class="f">ปีงบประมาณ (พ.ศ.) *<input class="inp" data-k="fiscal_year" value="${esc(f.fiscal_year)}" inputmode="numeric" maxlength="4" placeholder="เช่น ${currentFY()}"></label>
       <label class="f">หน่วยงาน *<select class="inp" data-k="unit">${units().map((u) => `<option ${u.name === f.unit ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
       <label class="f">สำนัก *<select class="inp" data-k="office">${offOpts(f.unit).map((o) => `<option ${o.short === f.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>
       <label class="f">รหัสงาน *<input class="inp" data-k="work_code" value="${esc(f.work_code)}" inputmode="numeric" placeholder="22000"></label>
@@ -147,6 +146,7 @@ function planForm(plan, app) {
     $('#pf-add', dlg).onclick = () => { f.segs.push({ road: '', from: '', to: '', side: 'LT.,RT.' }); draw(dlg); };
     $('#pf-save', dlg).onclick = async () => {
       const err = $('#pf-err', dlg), segs = [];
+      if (!/^2[5-6]\d{2}$/.test(String(f.fiscal_year).trim())) return (err.textContent = 'ปีงบประมาณต้องเป็น พ.ศ. 4 หลัก เช่น ' + currentFY());
       for (let i = 0; i < f.segs.length; i++) {
         const s = f.segs[i]; if (!s.road && !s.from && !s.to) continue;
         const a = kmParse(s.from), b = kmParse(s.to);
@@ -155,7 +155,7 @@ function planForm(plan, app) {
         segs.push({ road: s.road.trim(), km_from_m: a, km_to_m: b, side: s.side });
       }
       if (!segs.length && f.office !== 'สร. (งานอาคาร)') return (err.textContent = 'กรุณาระบุช่วงสายทางอย่างน้อย 1 ช่วง');
-      const payload = { plan: { plan_id: plan ? plan.plan_id : '', fiscal_year: Number(f.fiscal_year), unit: f.unit, office: f.office, work_code: String(f.work_code).trim(), work_name: String(f.work_name).trim(), budget: num(f.budget), budget_cut: String(f.budget_cut).trim() ? num(f.budget_cut) : '', note: f.note || '' }, segments: segs };
+      const payload = { plan: { plan_id: plan ? plan.plan_id : '', fiscal_year: Number(String(f.fiscal_year).trim()), unit: f.unit, office: f.office, work_code: String(f.work_code).trim(), work_name: String(f.work_name).trim(), budget: num(f.budget), budget_cut: String(f.budget_cut).trim() ? num(f.budget_cut) : '', note: f.note || '' }, segments: segs };
       if (!payload.plan.plan_id) delete payload.plan.plan_id;
       const btn = $('#pf-save', dlg); busy(btn);
       try {

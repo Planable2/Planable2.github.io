@@ -6,10 +6,30 @@ import { icon, busy, toast } from '../ui.js';
 import { resetDemo } from '../demo.js';
 
 let liffReady = null;
-async function initLiff() {
+export async function initLiff() {
   if (!CONFIG.LIFF_ID || !window.liff) return false;
   if (!liffReady) liffReady = liff.init({ liffId: CONFIG.LIFF_ID }).then(() => true).catch((e) => { console.warn(e); return false; });
   return liffReady;
+}
+
+const tokenFresh = () => { try { const t = liff.getDecodedIDToken(); return !t || t.exp * 1000 > Date.now() + 60000; } catch (e) { return true; } };
+
+/** ID token ที่ยังไม่หมดอายุ — ถ้าไม่มี/หมดอายุ จะพาไปหน้า LINE Login แล้วกลับมาทำต่อ (คืน null ระหว่างนั้น) */
+export async function lineToken(resumeFlag) {
+  if (!(await initLiff())) throw new Error('เชื่อมต่อ LINE ไม่ได้ — ตรวจ LIFF ID ในไฟล์ config.js');
+  if (liff.isInClient() || (liff.isLoggedIn() && tokenFresh())) return liff.getIDToken();
+  if (liff.isLoggedIn()) liff.logout();
+  sessionStorage.setItem(resumeFlag, '1');
+  liff.login({ redirectUri: location.origin + location.pathname });
+  return null;
+}
+
+/** ผู้ใช้ที่เข้าระบบอยู่แล้ว: ผูกบัญชี LINE + ใช้รูปโปรไฟล์จาก LINE */
+export async function linkLineFlow(onLinked) {
+  try {
+    const idToken = await lineToken('pa-link');
+    if (idToken) onLinked((await call('linkLine', { idToken })).user);
+  } catch (x) { toast(x.message, 'err'); }
 }
 
 export function loginView(root, onDone) {
@@ -17,7 +37,7 @@ export function loginView(root, onDone) {
   root.innerHTML = `
   <div class="login">
     <section class="hero">
-      <div class="row">${icon('leaf', 28)}<b style="font-family:var(--head);font-size:18px;font-weight:500">${esc(CONFIG.ORG_NAME)}</b></div>
+      <div class="row"><img class="logo" src="icons/logo-tile.png" alt="${esc(CONFIG.ORG_NAME)}" width="52" height="52"></div>
       <div class="col" style="gap:14px">
         <h1>${esc(CONFIG.APP_NAME)}</h1>
         <p style="margin:0;color:#E0E5D6;line-height:1.7">ติดตามแผนงานทุกแขวงและเขต • ปฏิทินประชุม • คลังเอกสารจาก LINE • งานสั่งการ — ข้อมูลชุดเดียวกันทุกหน้าจอ</p>
@@ -60,19 +80,15 @@ export function loginView(root, onDone) {
   if (lb) lb.onclick = () => lineFlow(root, onDone, err);
   // ติดตั้งครั้งแรก: ยังไม่มีผู้ดูแลระบบที่ตั้งรหัสผ่าน → แสดงปุ่มตั้งค่า
   if (!DEMO) call('ping').then((r) => { const b = $('#b-setup'); if (r && r.needsSetup && b) { b.style.display = ''; b.onclick = () => setupView(root, onDone); } }).catch(() => {});
-  // เปิดจากในแอป LINE: เข้าอัตโนมัติ
-  if (!DEMO && CONFIG.LIFF_ID) initLiff().then((ok) => { if (ok && (liff.isInClient() || liff.isLoggedIn())) lineFlow(root, onDone, err); });
+  // เข้าอัตโนมัติเฉพาะเมื่อเปิดในแอป LINE หรือเพิ่งกลับจากหน้า LINE Login — นอกนั้นให้ผู้ใช้เลือกเอง
+  const back = sessionStorage.getItem('pa-line'); sessionStorage.removeItem('pa-line');
+  if (!DEMO && CONFIG.LIFF_ID) initLiff().then((ok) => { if (ok && (liff.isInClient() || (back && liff.isLoggedIn()))) lineFlow(root, onDone, err); });
 }
 
 async function lineFlow(root, onDone, err) {
-  let idToken = 'demo';
-  if (!DEMO) {
-    const ok = await initLiff();
-    if (!ok) return err('เชื่อมต่อ LINE ไม่ได้ — ตรวจ LIFF ID ในไฟล์ config.js');
-    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
-    idToken = liff.getIDToken();
-  }
   try {
+    const idToken = DEMO ? 'demo' : await lineToken('pa-line');
+    if (!idToken) return;
     const res = await call('lineLogin', { idToken });
     if (res.token) return onDone(res);
     if (res.pending) return pendingView(root, res.user && res.user.full_name);
@@ -90,6 +106,7 @@ function registerView(root, idToken, res, onDone) {
   const box = $('#lg', root);
   box.innerHTML = `<h2 style="font-size:22px">ลงทะเบียนครั้งแรก</h2>
     <p class="muted" style="margin:0">สวัสดี ${esc(res.lineName || '')} — เลือกชื่อของคุณจากรายชื่อที่ผู้ดูแลระบบเพิ่มไว้</p>
+    <div class="note grey small">มีชื่อผู้ใช้/รหัสผ่านอยู่แล้ว? ไม่ต้องลงทะเบียนใหม่ — เข้าด้วยชื่อผู้ใช้ แล้วกด "เชื่อมบัญชี LINE" ที่หน้าโปรไฟล์</div>
     <div class="col" id="cands" style="gap:6px">${res.candidates.length ? res.candidates.map((c) => `<button class="person" data-u="${esc(c.user_id)}" style="border:1.5px solid var(--line)"><span class="grow"><b>${esc(c.full_name)}</b><br><span class="faint">${esc(c.position)} • ${esc(c.role)}</span></span></button>`).join('') : '<div class="empty">ไม่มีรายชื่อว่าง — แจ้งผู้ดูแลระบบให้เพิ่มชื่อของคุณก่อน</div>'}</div>
     <label class="f">ตั้งชื่อผู้ใช้ (ใช้บนคอมพิวเตอร์)<input class="inp" id="r-u" placeholder="ภาษาอังกฤษ/ตัวเลข อย่างน้อย 4 ตัว" autocomplete="username"></label>
     <label class="f">ตั้งรหัสผ่าน<input class="inp" id="r-p" type="password" placeholder="อย่างน้อย 8 ตัวอักษร" autocomplete="new-password"></label>

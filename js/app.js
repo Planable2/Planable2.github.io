@@ -4,7 +4,7 @@ import { call, token, DEMO } from './api.js';
 import { S, load, isGuest, isAdmin, can, myOpenOrders, pendingFiles, pendingUsers, invalidate } from './store.js';
 import { esc, $, $$, on } from './util.js';
 import { icon, avatar, toast, closeModal } from './ui.js';
-import { loginView } from './views/login.js';
+import { loginView, linkLineFlow } from './views/login.js';
 import * as Home from './views/home.js';
 import * as Plans from './views/plans.js';
 import * as Meetings from './views/meetings.js';
@@ -34,7 +34,14 @@ export const app = {
   go: (h) => { if (location.hash === '#/' + h) render(); else location.hash = '#/' + h; },
   refresh: () => { invalidate(); render(); },
   async reload() { const d = await call('bootstrap'); load(d); invalidate(); render(); },
-  logout
+  logout,
+  linkLine: () => linkLineFlow((u) => {
+    Object.assign(S.user, u);
+    const i = S.db.Users.findIndex((x) => x.user_id === u.user_id);
+    if (i >= 0) S.db.Users[i] = Object.assign({}, S.db.Users[i], u);
+    toast('เชื่อมบัญชี LINE แล้ว • ใช้รูปโปรไฟล์จาก LINE');
+    app.refresh();
+  })
 };
 
 async function boot() {
@@ -42,12 +49,22 @@ async function boot() {
   window.addEventListener('hashchange', () => { closeModal(); render(); });
   setupTip();
   if (token.get()) {
-    try { load(await call('bootstrap')); return render(); } catch (e) { if (!e.auth) { showFatal(e); return; } token.set(''); }
+    try {
+      load(await call('bootstrap'));
+      if (sessionStorage.getItem('pa-link')) {   // กลับมาจากหน้า LINE Login ระหว่างเชื่อมบัญชี
+        sessionStorage.removeItem('pa-link');
+        history.replaceState(null, '', '#/profile');
+        render();
+        return app.linkLine();
+      }
+      return render();
+    } catch (e) { if (!e.auth) { showFatal(e); return; } token.set(''); }
   }
   showLogin();
 }
 
 function showLogin() {
+  shellKey = '';
   $('#app').innerHTML = '';
   loginView($('#app'), async (res) => { token.set(res.token); load(await call('bootstrap')); location.hash = '#/home'; render(); });
 }
@@ -77,6 +94,7 @@ function render() {
   shell(r);
   const main = $('#view');
   main.innerHTML = '';
+  main.style.animation = 'none'; void main.offsetWidth; main.style.animation = '';
   window.scrollTo({ top: 0 });
   try { (r.fn ? r.mod[r.fn] : r.mod.view)(main, arg, app); }
   catch (e) { console.error(e); main.innerHTML = `<div class="empty">เกิดข้อผิดพลาดในการแสดงหน้า: ${esc(e.message)}</div>`; }
@@ -99,16 +117,27 @@ function menu() {
   return m;
 }
 
+const TOP_KEYS = ['home', 'plans', 'meetings', 'orders', 'more'];
+const MORE_KEYS = ['files', 'fuel', 'people', 'profile', 'settings', 'leaves', 'more'];
+const logo = (s) => `<img class="logo" src="icons/logo-tile.png" alt="" width="${s}" height="${s}">`;
+let shellKey = '', fly = { close() {} };
+
+/** เมนูสร้างครั้งเดียวแล้วคงอยู่ข้ามหน้า (สร้างใหม่เฉพาะเมื่อรายการ/ป้ายตัวเลขเปลี่ยน) — เปลี่ยนหน้าแล้วเมนูไม่กระพริบ */
 function shell(r) {
   const items = menu(), me = S.user;
   const bn = isGuest() ? [] : [['home', 'หน้าแรก', 'home', 'home'], ['plans', 'แผนงาน', 'list', 'plans'], ['meetings', 'ประชุม', 'cal', 'meetings'], ['orders', 'งานสั่งการ', 'task', 'orders'], ['more', 'เพิ่มเติม', 'more', 'more']];
-  const navKey = r.nav, moreKeys = ['files', 'fuel', 'people', 'profile', 'settings', 'leaves', 'more'];
   const o = myOpenOrders().length, more = isGuest() ? 0 : pendingFiles().length + (isAdmin() ? pendingUsers().length : 0);
+  const key = JSON.stringify([items, bn, o, more, me.user_id, me.full_name, me.line_picture_url, isGuest()]);
+  if (key !== shellKey || !$('#topnav')) { shellKey = key; build(items, bn, o, more, me); }
+  sync(r);
+}
+
+function build(items, bn, o, more, me) {
   $('#app').innerHTML = `
   <header class="topnav" id="topnav">
     <div class="bar"><div class="inner">
-      <a class="brand" href="#/home">${icon('leaf', 22)}<span>${esc(CONFIG.ORG_NAME)}</span></a>
-      <nav class="tn-links" aria-label="เมนูหลัก">${items.map((m) => `<a class="tn-link ${m.k === navKey ? 'on' : ''}" href="#/${m.href}" data-k="${m.k}">${esc(m.label)}${m.badge ? `<span class="badge">${m.badge}</span>` : ''}</a>`).join('')}</nav>
+      <a class="brand" href="#/home">${logo(28)}<span>${esc(CONFIG.ORG_NAME)}</span></a>
+      <nav class="tn-links" aria-label="เมนูหลัก">${items.map((m) => `<a class="tn-link" href="#/${m.href}" data-k="${m.k}">${esc(m.label)}${m.badge ? `<span class="badge">${m.badge}</span>` : ''}</a>`).join('')}</nav>
       ${DEMO ? '<span class="tag gold">โหมดสาธิต</span>' : ''}
       ${isGuest() ? '<span class="tag gold">ผู้เยี่ยมชม</span>' : `<a href="#/profile" class="icon-btn" title="โปรไฟล์ของฉัน">${avatar(me, 28)}</a>`}
       <button class="icon-btn" id="btn-logout" title="ออกจากระบบ" aria-label="ออกจากระบบ">${icon('out', 18)}</button>
@@ -116,20 +145,49 @@ function shell(r) {
     <div class="fly">${items.filter((m) => m.cols.length).map((m) => `<div class="panel" data-p="${m.k}">${m.cols.map((c, ci) => `<div class="c ${c[1]}"><span class="colh">${esc(c[0])}</span>${c[2].map((l, li) => `<a href="#/${l[1]}" style="animation-delay:${ci * 60 + 30 + li * 22}ms">${esc(l[0])}</a>`).join('')}</div>`).join('')}</div>`).join('')}</div>
   </header>
   <div class="dim" id="dim"></div>
-  <div class="mhead">${['home', 'plans', 'meetings', 'orders', 'more'].includes(navKey) || isGuest() ? icon('leaf', 22) : `<a class="icon-btn" href="#/more" aria-label="กลับ">${icon('back')}</a>`}<h1 class="grow">${esc(r.title)}</h1>${DEMO ? '<span class="tag gold">สาธิต</span>' : ''}${isGuest() ? `<button class="icon-btn" id="btn-logout-m" aria-label="ออกจากระบบ">${icon('out', 18)}</button>` : `<a href="#/profile">${avatar(me, 30)}</a>`}</div>
+  <div class="mhead" id="mhead"></div>
   <main class="page" id="view"></main>
-  ${bn.length ? `<nav class="bottomnav" aria-label="เมนูล่าง">${bn.map((b) => { const onk = b[0] === navKey || (b[0] === 'more' && moreKeys.includes(navKey)); const badge = b[0] === 'orders' ? o : b[0] === 'more' ? more : 0; return `<a href="#/${b[3]}" class="${onk ? 'on' : ''}" ${onk ? 'aria-current="page"' : ''}><span class="pillbg">${icon(b[2])}</span>${b[1]}${badge ? `<span class="badge">${badge}</span>` : ''}</a>`; }).join('')}</nav>` : ''}`;
-  const tn = $('#topnav');
-  let t;
-  const open = (k) => { clearTimeout(t); $$('.fly .panel', tn).forEach((p) => p.classList.toggle('on', p.dataset.p === k)); tn.classList.toggle('open', !!$(`.fly .panel[data-p="${k}"]`, tn)); };
-  const close = () => { t = setTimeout(() => tn.classList.remove('open'), 80); };
-  on(tn, '.tn-link', 'mouseenter', (e, el) => open(el.dataset.k));
-  on(tn, '.tn-link', 'focus', (e, el) => open(el.dataset.k));
-  tn.addEventListener('mouseleave', close);
-  $('.fly', tn).addEventListener('mouseenter', () => clearTimeout(t));
-  $('#dim').addEventListener('mouseenter', () => tn.classList.remove('open'));
-  $$('.fly a', tn).forEach((a) => a.addEventListener('click', () => tn.classList.remove('open')));
-  ['#btn-logout', '#btn-logout-m'].forEach((s) => { const b = $(s); if (b) b.onclick = () => logout(); });
+  ${bn.length ? `<nav class="bottomnav" aria-label="เมนูล่าง">${bn.map((b) => { const badge = b[0] === 'orders' ? o : b[0] === 'more' ? more : 0; return `<a href="#/${b[3]}" data-k="${b[0]}"><span class="pillbg">${icon(b[2])}</span>${b[1]}${badge ? `<span class="badge">${badge}</span>` : ''}</a>`; }).join('')}</nav>` : ''}`;
+  const tn = $('#topnav'), box = $('.fly', tn);
+  let t = null, cur = null;
+  const panelOf = (k) => $(`.fly .panel[data-p="${k}"]`, tn);
+  const show = (k) => {
+    clearTimeout(t);
+    const p = k ? panelOf(k) : null;
+    $$('.fly .panel', tn).forEach((x) => x.classList.toggle('on', x === p));
+    tn.classList.toggle('open', !!p);
+    box.style.height = p ? p.offsetHeight + 'px' : '0px';
+    cur = p ? k : null;
+  };
+  // เปิดอยู่แล้ว = สลับทันที • ยังไม่เปิด = รอเล็กน้อย (กันเมนูเด้งตอนเมาส์ผ่าน) • แท็บที่ไม่มีเมนูย่อย = หน่วงก่อนปิด
+  const enter = (k) => {
+    clearTimeout(t);
+    const p = panelOf(k);
+    if (cur && p) show(k);
+    else if (cur) t = setTimeout(() => show(null), 160);
+    else if (p) t = setTimeout(() => show(k), 110);
+  };
+  on(tn, '.tn-link', 'mouseenter', (e, el) => enter(el.dataset.k));
+  on(tn, '.tn-link', 'focus', (e, el) => show(el.dataset.k));
+  tn.addEventListener('mouseleave', () => { clearTimeout(t); t = setTimeout(() => show(null), 140); });
+  box.addEventListener('mouseenter', () => clearTimeout(t));
+  $('#dim').addEventListener('mouseenter', () => show(null));
+  $$('.fly a', tn).forEach((a) => a.addEventListener('click', () => show(null)));
+  $('#btn-logout').onclick = () => logout();
+  fly = { close: () => show(null) };
+}
+
+function sync(r) {
+  const k = r.nav;
+  $$('#topnav .tn-link').forEach((a) => a.classList.toggle('on', a.dataset.k === k));
+  $$('.bottomnav a').forEach((a) => {
+    const onk = a.dataset.k === k || (a.dataset.k === 'more' && MORE_KEYS.includes(k));
+    a.classList.toggle('on', onk);
+    if (onk) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+  $('#mhead').innerHTML = `${TOP_KEYS.includes(k) || isGuest() ? logo(30) : `<a class="icon-btn" href="#/more" aria-label="กลับ">${icon('back')}</a>`}<h1 class="grow">${esc(r.title)}</h1>${DEMO ? '<span class="tag gold">สาธิต</span>' : ''}${isGuest() ? `<button class="icon-btn" id="btn-logout-m" aria-label="ออกจากระบบ">${icon('out', 18)}</button>` : `<a href="#/profile">${avatar(S.user, 30)}</a>`}`;
+  const bm = $('#btn-logout-m'); if (bm) bm.onclick = () => logout();
+  fly.close();
 }
 
 /* ทูลทิปของกราฟ: data-tip="หัวเรื่อง|บรรทัด|บรรทัด" */

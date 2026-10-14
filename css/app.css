@@ -30,20 +30,22 @@ button { cursor: pointer; }
 .topnav.open .bar { background: rgba(251, 249, 244, .97); }
 .topnav .inner { max-width: 1180px; height: 100%; margin: 0 auto; padding: 0 22px; display: flex; align-items: center; gap: 6px; }
 .brand { display: flex; align-items: center; gap: 8px; color: var(--ink); font-family: var(--head); font-size: 15px; margin-right: 10px; }
-.brand svg { color: var(--green2); }
+.logo { display: block; flex-shrink: 0; border-radius: 24%; }
 .tn-links { flex-grow: 1; display: flex; justify-content: center; gap: 2px; }
 .tn-link { position: relative; height: 52px; padding: 0 11px; display: flex; align-items: center; gap: 5px; font-size: 13px; color: rgba(43, 42, 34, .78); transition: color .24s var(--ease); white-space: nowrap; }
 .tn-link:hover, .tn-link.on { color: #11110E; }
 .tn-link.on { font-weight: 600; }
 .tn-link.on::after { content: ''; position: absolute; left: 11px; right: 11px; bottom: 9px; height: 2px; border-radius: 1px; background: var(--green2); }
 .badge { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px; background: #C66B3D; color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-.fly { position: absolute; left: 0; right: 0; top: 52px; max-height: 0; opacity: 0; overflow: hidden; background: rgba(251, 249, 244, .97); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); transition: max-height .32s var(--ease), opacity .24s var(--ease); }
-.topnav.open .fly { max-height: 420px; opacity: 1; box-shadow: 0 24px 40px rgba(46, 52, 40, .08); }
-.fly .panel { display: none; max-width: 1180px; margin: 0 auto; padding: 34px 22px 44px 140px; gap: 72px; }
-.fly .panel.on { display: flex; }
+/* เมนูย่อย: กล่องเลื่อนความสูงตามแผงที่เปิด • แผงซ้อนกันแล้วจางสลับ (ไม่มีจังหวะว่างระหว่างแท็บ) */
+.fly { position: absolute; left: 0; right: 0; top: 52px; height: 0; overflow: hidden; background: rgba(251, 249, 244, .97); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); transition: height .36s var(--ease), box-shadow .36s var(--ease); }
+.topnav.open .fly { box-shadow: 0 24px 40px rgba(46, 52, 40, .08); }
+.fly .panel { position: absolute; top: 0; left: 0; right: 0; display: flex; max-width: 1180px; margin: 0 auto; padding: 34px 22px 44px 140px; gap: 72px; opacity: 0; visibility: hidden; transition: opacity .16s var(--ease), visibility 0s linear .16s; }
+.fly .panel.on { opacity: 1; visibility: visible; transition: opacity .26s var(--ease) .05s, visibility 0s; }
 .fly .colh { font-size: 12px; color: #77705E; margin-bottom: 8px; }
 .fly .c { display: flex; flex-direction: column; gap: 9px; min-width: 150px; }
-.fly a { color: var(--ink); animation: tnIn .34s var(--ease) both; }
+.fly a { color: var(--ink); }
+.fly .panel.on a { animation: tnIn .34s var(--ease) both; }
 .fly a:hover { color: #3E5A38; }
 .fly .big a { font-family: var(--head); font-size: 24px; font-weight: 500; }
 .fly .sm a { font-size: 13px; }

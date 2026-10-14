@@ -1,6 +1,7 @@
 // ===== เมนูเพิ่มเติม (มือถือ) + ราคาน้ำมัน =====
 import { S, isAdmin, pendingFiles, pendingUsers, setting } from '../store.js';
 import { DEMO } from '../api.js';
+import { CONFIG } from '../config.js';
 import { esc, $, on, thDate, uniq } from '../util.js';
 import { avatar, icon, empty } from '../ui.js';
 
@@ -16,7 +17,7 @@ export function more(main, arg, app) {
     ${isAdmin() ? `<a href="#/settings"><span class="ic">${icon('gear')}</span><span class="grow"><b>ตั้งค่าระบบ</b><br><span class="faint">เฉพาะผู้ดูแลระบบ • แนะนำใช้บนคอมพิวเตอร์</span></span>${icon('chev', 16)}</a>` : ''}
   </section>
   <button class="btn danger block" id="mo-out">${icon('out', 16)}ออกจากระบบ</button>
-  <p class="faint center">ระบบงานฝ่ายแผนงาน${DEMO ? ' • โหมดสาธิต' : ''} • ติดตั้งเป็นแอปได้จากเมนูเบราว์เซอร์ "เพิ่มลงหน้าจอหลัก"</p>`;
+  <p class="faint center">${esc(CONFIG.APP_NAME)}${DEMO ? ' • โหมดสาธิต' : ''} • ติดตั้งเป็นแอปได้จากเมนูเบราว์เซอร์ "เพิ่มลงหน้าจอหลัก"</p>`;
   $('#mo-out').onclick = () => app.logout();
 }
 

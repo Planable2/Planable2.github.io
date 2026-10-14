@@ -1,6 +1,7 @@
 // ===== บุคลากร + โปรไฟล์ของฉัน =====
 import { S, isAdmin, plans, units, myOpenOrders, attendeesOf, assigneesOf, orderDone } from '../store.js';
 import { call, DEMO } from '../api.js';
+import { CONFIG } from '../config.js';
 import { esc, $, on, today, toDate, thDate } from '../util.js';
 import { modal, modalHead, closeModal, toast, busy, avatar, icon, empty } from '../ui.js';
 
@@ -69,12 +70,15 @@ export function profile(main, arg, app) {
       <section class="card"><h2>งานของฉัน</h2><div class="kpis">${statsOf(u.user_id).map((s) => `<a class="kpi" href="#/${s[2]}" style="background:var(--soft)"><span class="v">${esc(s[0])}</span><span class="l">${esc(s[1])}</span></a>`).join('')}</div></section>
       <section class="card col" style="gap:10px"><h2 style="margin:0">บัญชีและรหัสผ่าน</h2>
         <table class="tbl"><tbody><tr><td class="muted" style="width:130px">ชื่อผู้ใช้</td><td>${esc(u.username || '—')}</td></tr><tr><td class="muted">เข้าระบบด้วย</td><td>${u.has_line ? 'LINE (มือถือ) • ' : ''}รหัสผ่าน (คอมพิวเตอร์)</td></tr></tbody></table>
+        ${!DEMO && CONFIG.LIFF_ID ? `<button class="btn line" id="pf-line" style="align-self:flex-start">${u.has_line ? 'อัปเดตรูปโปรไฟล์จาก LINE' : 'เชื่อมบัญชี LINE • ใช้รูปโปรไฟล์จาก LINE'}</button>` : ''}
         <div class="fgrid"><label class="f">รหัสผ่านปัจจุบัน<input class="inp" type="password" id="pw-cur" autocomplete="current-password"></label><label class="f">รหัสผ่านใหม่<input class="inp" type="password" id="pw-new" autocomplete="new-password"></label><label class="f">ยืนยันรหัสใหม่<input class="inp" type="password" id="pw-new2" autocomplete="new-password"></label></div>
         <span class="err" id="pw-err"></span><button class="btn" id="pw-save" style="align-self:flex-end">เปลี่ยนรหัสผ่าน</button></section>
     </div>
   </div>
   ${DEMO ? '<span class="faint">โหมดสาธิต: การแก้ไขเก็บในเครื่องนี้เท่านั้น</span>' : ''}`;
   $('#pf-logout').onclick = () => app.logout();
+  const pl = $('#pf-line');
+  if (pl) pl.onclick = async () => { busy(pl); await app.linkLine(); busy(pl, false); };
   const inst = $('#pf-install');
   if (deferredPrompt) { inst.style.display = ''; inst.onclick = async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; inst.style.display = 'none'; }; }
   $('#me-save').onclick = async (e) => {
