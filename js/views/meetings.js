@@ -95,7 +95,7 @@ function form(m, app) {
         if (i >= 0) S.db.Meetings[i] = r.meeting; else S.db.Meetings.push(r.meeting);
         S.db.MeetingAttendees = S.db.MeetingAttendees.filter((a) => a.meeting_id !== r.meeting.meeting_id).concat(r.attendees.map((u) => ({ meeting_id: r.meeting.meeting_id, user_id: u })));
         const d = toDate(r.meeting.date); ui.y = d.getFullYear(); ui.m = d.getMonth(); ui.sel = r.meeting.date;
-        closeModal(); toast('บันทึกแล้ว: ' + r.meeting.title + (f.notify_line ? ' • แจ้งกลุ่ม LINE' : '')); app.go('meetings');
+        closeModal(); toast('บันทึกแล้ว: ' + r.meeting.title + (r.notified ? ' • แจ้งกลุ่ม LINE แล้ว' : '')); app.go('meetings');
       } catch (x) { err.textContent = x.message; busy(b, false); }
     };
   };

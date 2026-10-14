@@ -66,7 +66,7 @@ function classify(f, app) {
     if ($('#c-id', dlg)) $('#c-id', dlg).onchange = (e) => (st.link_id = e.target.value);
     $('#c-save', dlg).onclick = async () => {
       const b = $('#c-save', dlg); busy(b);
-      try { const r = await call('classifyFile', { file_id: f.file_id, ...st }); Object.assign(f, r.file); closeModal(); toast('จัดหมวดแล้ว: ' + (st.category || '—')); app.refresh(); }
+      try { const r = await call('classifyFile', { file_id: f.file_id, ...st }); Object.assign(f, r.file); closeModal(); toast('จัดหมวดแล้ว: ' + (st.category || '—') + (r.moved ? ' • ย้ายไฟล์ใน Drive แล้ว' : '')); app.refresh(); }
       catch (x) { $('#c-err', dlg).textContent = x.message; busy(b, false); }
     };
   };
