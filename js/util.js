@@ -45,4 +45,14 @@ export const uniq = (arr) => Array.from(new Set(arr));
 export const by = (k) => (a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0);
 export const truthy = (v) => v === true || v === 'TRUE' || v === 'true' || v === 1;
 export const initials = (name) => { const s = String(name || '').replace(/[\[\]]/g, '').trim(); return s ? s.slice(0, 2) : '?'; };
+/** ตัวช่วย Excel (~200KB) โหลดเมื่อกดส่งออก/นำเข้าเท่านั้น ไม่ให้หน่วงการเปิดแอป */
+let xlsxP = null;
+export function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return xlsxP || (xlsxP = new Promise((ok, bad) => {
+    const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = () => ok(window.XLSX); s.onerror = () => { xlsxP = null; bad(new Error('โหลดตัวช่วย Excel ไม่ได้ — ตรวจอินเทอร์เน็ต')); };
+    document.head.appendChild(s);
+  }));
+}
 export const debounce = (fn, ms = 250) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };

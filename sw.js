@@ -1,5 +1,5 @@
 // Service Worker: เก็บไฟล์หน้าเว็บไว้ในเครื่อง เปิดเร็ว/ติดตั้งเป็นแอปได้ • ข้อมูลจาก API ไม่เก็บ (ดึงสดทุกครั้ง)
-const VERSION = 'plan-app-v1.6.0';   // เปลี่ยนเลขนี้ทุกครั้งที่อัปเดตไฟล์บน GitHub Pages
+const VERSION = 'plan-app-v1.7.0';   // เปลี่ยนเลขนี้ทุกครั้งที่อัปเดตไฟล์บน GitHub Pages (แอปจะโหลดเวอร์ชันใหม่ให้เอง)
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/config.js', './js/api.js', './js/demo.js', './js/store.js', './js/util.js', './js/ui.js', './js/charts.js', './js/mappick.js',
@@ -9,7 +9,8 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' = ดึงจาก GitHub ตรงๆ ไม่ใช้สำเนาเก่าใน cache ของเบราว์เซอร์ (GitHub Pages เก็บไว้ 10 นาที)
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -25,6 +26,11 @@ self.addEventListener('fetch', (e) => {
     }
     return;
   }
-  // ไฟล์ของแอป: ใช้เน็ตก่อน (ได้เวอร์ชันล่าสุด) ถ้าออฟไลน์ใช้ที่เก็บไว้
-  e.respondWith(fetch(req).then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); return res; }).catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html'))));
+  // ไฟล์ของแอป: ตอบจากที่เก็บในเครื่องทันที (เปิดเร็ว) แล้วดึงฉบับล่าสุดเก็บไว้เบื้องหลัง • ออฟไลน์ก็เปิดได้
+  // ไฟล์ชุดใหม่ทั้งชุดมาตอนเปลี่ยน VERSION → app.js โหลดหน้าใหม่ให้เอง 1 ครั้ง
+  e.respondWith(caches.open(VERSION).then((c) => c.match(req, { ignoreSearch: req.mode === 'navigate' }).then((hit) => {
+    const net = fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; });
+    if (hit) { e.waitUntil(net.catch(() => {})); return hit; }
+    return net.catch(() => c.match('./index.html'));
+  })));
 });

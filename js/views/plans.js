@@ -1,7 +1,7 @@
 // ===== ทะเบียนแผน: แยกปีงบ › หน่วยงาน, ลงทะเบียน/แก้ไข, นำเข้า Excel, รายละเอียด + อัปเดตสถานะ =====
 import { S, plans, planYears, defaultYear, units, offices, statuses, statusOf, unitOf, userOf, can, isAdmin, currentFY, cfg } from '../store.js';
 import { call } from '../api.js';
-import { esc, $, $$, on, money, mil, num, kmText, kmParse, thDate, thDateTime, debounce } from '../util.js';
+import { esc, $, $$, on, money, mil, num, kmText, kmParse, thDate, thDateTime, debounce, loadXLSX } from '../util.js';
 import { modal, modalHead, closeModal, toast, busy, avatar, statusPill, icon, empty } from '../ui.js';
 
 const ui = { year: null, q: '', unit: 'all', office: 'all', status: 'all', open: {} };
@@ -102,8 +102,8 @@ function row(p) {
     <td>${p.rounds ? `<span class="tag gold" data-tip="${esc('ส่งกลับแก้ ' + p.rounds + ' รอบ|' + p.reasons.join('|'))}">${p.rounds} รอบ</span>` : '<span class="faint">—</span>'}</td></tr>`;
 }
 
-function exportPlans(rows) {
-  if (!window.XLSX) return toast('กำลังโหลดตัวช่วย Excel… ลองอีกครั้ง', 'err');
+async function exportPlans(rows) {
+  try { await loadXLSX(); } catch (e) { return toast(e.message, 'err'); }
   const data = [];
   rows.forEach((p) => (p.segs.length ? p.segs : [null]).forEach((s) => data.push({ plan_id: p.plan_id, ปีงบ: p.fiscal_year, หน่วยงาน: p.unit, สำนัก: p.office, รหัสงาน: p.work_code, ชื่องาน: p.work_name, สายทาง: s ? s.road : '', 'กม.เริ่ม': s ? kmText(s.km_from_m) : '', 'กม.สิ้นสุด': s ? kmText(s.km_to_m) : '', ฝั่ง: s ? s.side : '', งบที่ได้รับ: p.budget, หลังปรับลด: p.budget_cut, สถานะ: p.st.name, 'ส่งกลับแก้ (รอบ)': p.rounds })));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'ทะเบียนแผน');
@@ -182,9 +182,10 @@ function importDialog(app) {
         <label class="col center" style="border:2px dashed #B8C7AE;background:#F7F9F3;border-radius:24px;padding:34px;cursor:pointer;align-items:center;gap:6px">${icon('up', 34)}<b>เลือกไฟล์ .xlsx</b><span class="faint">หัวคอลัมน์: ${COLS.join(' • ')}</span><input type="file" accept=".xlsx,.xls,.csv" id="im-file" hidden></label>
         <div class="row wrap note grey"><span class="grow">ยังไม่มีไฟล์? ดาวน์โหลดแม่แบบที่หัวคอลัมน์ตรงกับระบบ</span><button class="btn sm" id="im-tpl">${icon('download', 14)}ดาวน์โหลดแม่แบบ</button></div>
         <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button></div>`;
-      $('#im-tpl', dlg).onclick = () => { if (!window.XLSX) return; const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([COLS, [ui.year || currentFY(), 'แขวง 1', 'สผ.', '22000', 'งานเสริมผิวแอสฟัลต์', 'ทล.101', '1+000', '3+000', 'LT.,RT.', 4500000, 4230000]]), 'แผนงาน'); XLSX.writeFile(wb, 'แม่แบบนำเข้าแผน.xlsx'); };
+      $('#im-tpl', dlg).onclick = async () => { try { await loadXLSX(); } catch (x) { return toast(x.message, 'err'); } const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([COLS, [ui.year || currentFY(), 'แขวง 1', 'สผ.', '22000', 'งานเสริมผิวแอสฟัลต์', 'ทล.101', '1+000', '3+000', 'LT.,RT.', 4500000, 4230000]]), 'แผนงาน'); XLSX.writeFile(wb, 'แม่แบบนำเข้าแผน.xlsx'); };
       $('#im-file', dlg).onchange = async (e) => {
-        const file = e.target.files[0]; if (!file || !window.XLSX) return;
+        const file = e.target.files[0]; if (!file) return;
+        try { await loadXLSX(); } catch (x) { return toast(x.message, 'err'); }
         const wb = XLSX.read(await file.arrayBuffer());
         const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
         st.file = file.name; st.rows = parse(raw); draw(dlg);

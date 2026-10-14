@@ -47,7 +47,13 @@ export const app = {
 };
 
 async function boot() {
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    // มีเวอร์ชันใหม่ (sw.js เปลี่ยน VERSION) → โหลดหน้าใหม่ 1 ครั้ง ถ้าไม่ได้เปิดฟอร์มค้างอยู่ (ไม่ทำตอนเปิดครั้งแรก)
+    const hadCtrl = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtrl && !reloaded && !$('#modal-root .overlay')) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
   window.addEventListener('hashchange', () => { closeModal(); render(); });
   setupTip();
   if (token.get()) {

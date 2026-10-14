@@ -1,6 +1,6 @@
 // ===== หน้าแรก / Dashboard =====
 import { S, plans, planYears, defaultYear, units, offices, statuses, isGuest, myOpenOrders, attendeesOf, currentFY, orderDone, assigneesOf } from '../store.js';
-import { esc, $, on, mil, money, thDate, toDate, today, daysBetween, TH_DOW } from '../util.js';
+import { esc, $, on, mil, money, thDate, toDate, today, daysBetween, TH_DOW, loadXLSX } from '../util.js';
 import { chart } from '../charts.js';
 import { modal, modalHead, avatarStack, icon, toast } from '../ui.js';
 
@@ -118,8 +118,8 @@ function drill(unit, yearPlans) {
     <div class="dlg-foot"><button class="btn" data-dismiss>ปิด</button>${isGuest() ? '' : `<a class="btn pri" href="#/plans" data-dismiss onclick="sessionStorage.setItem('plan-unit',${esc(JSON.stringify(unit))})">เปิดทะเบียนแผนของ ${esc(unit)}</a>`}</div>`, { wide: true });
 }
 
-function exportYear(rows) {
-  if (!window.XLSX) return toast('กำลังโหลดตัวช่วย Excel… ลองอีกครั้ง', 'err');
+async function exportYear(rows) {
+  try { await loadXLSX(); } catch (e) { return toast(e.message, 'err'); }
   const data = rows.map((p) => ({ ปีงบ: p.fiscal_year, หน่วยงาน: p.unit, สำนัก: p.office, รหัสงาน: p.work_code, ชื่องาน: p.work_name, สายทาง: p.segs.map((s) => s.road).join(', '), 'งบที่ได้รับ': p.budget, 'หลังปรับลด': p.budget_cut, สถานะ: p.st.name, 'ส่งกลับแก้ (รอบ)': p.rounds, เลยกำหนด: p.late ? 'ใช่' : '' }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'สถานะแผน');
   XLSX.writeFile(wb, `สถานะแผน_ปีงบ${rows[0] ? rows[0].fiscal_year : ''}.xlsx`);

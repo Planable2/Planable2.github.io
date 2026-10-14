@@ -17,14 +17,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
+<!-- โหลดสคริปต์ทุกไฟล์พร้อมกัน (ไม่ต้องรอทีละชั้น) -->
+<link rel="modulepreload" href="js/app.js"><link rel="modulepreload" href="js/config.js"><link rel="modulepreload" href="js/api.js"><link rel="modulepreload" href="js/store.js">
+<link rel="modulepreload" href="js/util.js"><link rel="modulepreload" href="js/ui.js"><link rel="modulepreload" href="js/demo.js"><link rel="modulepreload" href="js/charts.js"><link rel="modulepreload" href="js/mappick.js">
+<link rel="modulepreload" href="js/views/login.js"><link rel="modulepreload" href="js/views/home.js"><link rel="modulepreload" href="js/views/plans.js"><link rel="modulepreload" href="js/views/meetings.js">
+<link rel="modulepreload" href="js/views/leaves.js"><link rel="modulepreload" href="js/views/orders.js"><link rel="modulepreload" href="js/views/files.js"><link rel="modulepreload" href="js/views/people.js">
+<link rel="modulepreload" href="js/views/settings.js"><link rel="modulepreload" href="js/views/misc.js"><link rel="modulepreload" href="js/views/prices.js">
 </head>
 <body>
 <div id="app"><div class="loading"><span class="spin"></span>กำลังโหลด…</div></div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="modal-root"></div>
 <noscript>ต้องเปิด JavaScript เพื่อใช้งานระบบ</noscript>
-<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js" defer></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>
