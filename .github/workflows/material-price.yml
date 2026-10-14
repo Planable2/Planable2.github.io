@@ -1,0 +1,53 @@
+# ดึงราคาวัสดุจากกระทรวงพาณิชย์ (index-api.tpso.go.th) ทุกวัน แล้วส่งเข้าระบบ
+#   ยางมะตอย = ราคาส่วนกลาง • คอนกรีตผสมเสร็จ / ปูนซีเมนต์ = พาณิชย์จังหวัด แพร่ น่าน พะเยา เชียงราย
+#   ราคาไม่รวม VAT • ดึงเดือนนี้ + 2 เดือนก่อน (แต่ละจังหวัดเผยแพร่ไม่พร้อมกัน) • ส่งซ้ำได้
+# ตั้งค่า: ใช้ API_URL (Variables) และ FUEL_API_KEY (Secrets) ชุดเดียวกับ fuel-price.yml
+name: material-price
+on:
+  schedule:
+    - cron: '20 1 * * *'   # 08:20 น. เวลาไทยทุกวัน
+  workflow_dispatch:
+    inputs:
+      months:
+        description: 'ดึงย้อนหลังกี่เดือน (นับเดือนนี้ด้วย)'
+        default: '3'
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: ดึงราคาจากพาณิชย์ แล้วส่งเข้า matIngest
+        env:
+          API_URL: ${{ vars.API_URL }}
+          FUEL_API_KEY: ${{ secrets.FUEL_API_KEY }}
+          MONTHS: ${{ github.event.inputs.months || '3' }}
+        run: |
+          set -e
+          PROVS='["แพร่","น่าน","พะเยา","เชียงราย"]'
+          DOCS='[]'
+          MID=$(TZ=Asia/Bangkok date +%Y-%m-15)
+          for ((i = 0; i < MONTHS; i++)); do
+            Y=$(date -d "$MID -$i month" +%Y); M=$(date -d "$MID -$i month" +%-m); PERIOD=$(date -d "$MID -$i month" +%Y-%m)
+            echo "ดึงเดือน $PERIOD (ไฟล์ใหญ่ ~8MB อาจใช้ 1-2 นาที)"
+            curl -sS --max-time 240 -X POST -H 'Content-Type: application/json' \
+              -d "{\"year\":$((Y + 543)),\"month\":$M}" https://index-api.tpso.go.th/OpenApi/CmiPrice/Month -o month.json || echo '[]' > month.json
+            ADD=$(jq -c --arg period "$PERIOD" --argjson provs "$PROVS" '
+              def nm: (.commodityNameTH // "") | gsub("\\s+"; " ") | sub("^ "; "") | sub(" $"; "");
+              def inprov: .typeName as $t | any($provs[]; . == $t);
+              def code: (.commodityCode // "");
+              if type != "array" then [] else
+              [ { kind: "asphalt", source: "พาณิชย์", period: $period, note: "ราคาส่วนกลาง • ไม่รวม VAT",
+                  prices: [ .[] | select(.type == "10" and .priceCur != null and (code | startswith("15050"))) | {code: .commodityCode, price: .priceCur, unit: .unitName} ] },
+                { kind: "concrete", source: "พาณิชย์จังหวัด", period: $period, note: "ไม่รวม VAT",
+                  prices: [ .[] | select(.priceCur != null and inprov and (nm | startswith("คอนกรีตผสมเสร็จ"))) | {item: nm, area: .typeName, price: .priceCur, unit: .unitName} ] },
+                { kind: "cement", source: "พาณิชย์จังหวัด", period: $period, note: "ไม่รวม VAT",
+                  prices: [ .[] | select(.priceCur != null and inprov and (code | (startswith("1501") or startswith("1502")))) | {item: nm, area: .typeName, price: .priceCur, unit: .unitName} ] }
+              ] | map(select(.prices | length > 0)) end' month.json)
+            echo "  ได้ $(echo "$ADD" | jq '[.[].prices | length] | add // 0') รายการ"
+            DOCS=$(echo "$DOCS" | jq -c --argjson add "$ADD" '. + $add')
+          done
+
+          BODY=$(jq -n --argjson docs "$DOCS" --arg key "$FUEL_API_KEY" '{action:"matIngest", key:$key, docs:$docs}')
+          RES=$(curl -sS -X POST -H 'Content-Type: text/plain' -d "$BODY" "$API_URL")
+          echo "$RES"
+          echo "$RES" | jq -e '.ok == true' > /dev/null   # API ตอบ ok:false → ให้ workflow ขึ้นแดง
