@@ -1,5 +1,5 @@
 // ===== สถานะของแอป + คำนวณค่าที่ได้จากข้อมูลชุดเดียว =====
-import { truthy, toDate, today, fiscalYear, by } from './util.js';
+import { truthy, toDate, today, fiscalYear, by, iso } from './util.js';
 
 export const S = { user: null, perms: {}, cfg: {}, db: {}, ui: {} };
 
@@ -76,3 +76,22 @@ export function myOpenOrders() {
 }
 export const pendingFiles = () => S.db.Files.filter((f) => !f.category);
 export const pendingUsers = () => S.db.Users.filter((u) => u.status === 'pending');
+
+/** ลิงก์นำทาง Google Maps ของประชุม (พิกัด → เส้นทาง • ไม่มีพิกัดใช้ลิงก์ที่วางไว้) */
+export function navUrl(m) {
+  const has = (v) => v !== '' && v !== null && v !== undefined && !isNaN(Number(v));
+  if (has(m.lat) && has(m.lng)) return `https://www.google.com/maps/dir/?api=1&destination=${Number(m.lat)},${Number(m.lng)}`;
+  return /^https?:\/\//i.test(String(m.map_url || '')) ? m.map_url : '';
+}
+/** นอกสถานที่ = ปักพิกัด/มีลิงก์แผนที่ หรือเป็นประเภทที่ติ๊ก "นอกสถานที่" ในตั้งค่า */
+export const isOffsite = (m) => !!navUrl(m) || truthy((cfg('MeetKinds').find((k) => k.kind_id === m.kind) || {}).offsite);
+
+/** ตัวเลขแจ้งเตือนตามบทบาท (ตั้งค่า › บทบาท › ตัวเลขบนไอคอน): meetings | files | trips | none */
+export function badgeInfo() {
+  const mode = String(S.perms.badge || 'meetings').trim(), t = iso(today()), me = S.user?.user_id;
+  const up = S.db.Meetings.filter((m) => m.status !== 'cancelled' && m.date >= t);
+  if (mode === 'none') return { mode, n: 0, label: '' };
+  if (mode === 'files') return { mode, n: pendingFiles().length, label: 'เอกสารรอจัดหมวด' };
+  if (mode === 'trips') return { mode, n: new Set(up.filter(isOffsite).map((m) => m.date)).size, label: 'วันที่ต้องออกนอกสถานที่' };
+  return { mode: 'meetings', n: up.filter((m) => attendeesOf(m.meeting_id).includes(me)).length, label: 'ประชุม/กิจกรรมที่ต้องเข้า' };
+}

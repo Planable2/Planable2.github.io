@@ -1,5 +1,5 @@
 // ===== บุคลากร + โปรไฟล์ของฉัน =====
-import { S, isAdmin, plans, units, myOpenOrders, attendeesOf, assigneesOf, orderDone } from '../store.js';
+import { S, isAdmin, plans, units, myOpenOrders, attendeesOf, assigneesOf, orderDone, badgeInfo } from '../store.js';
 import { call, DEMO } from '../api.js';
 import { CONFIG } from '../config.js';
 import { esc, $, on, today, toDate, thDate } from '../util.js';
@@ -54,12 +54,12 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
 
 export function profile(main, arg, app) {
-  const u = S.user, rev = reviewOf(u.user_id);
+  const u = S.user, rev = reviewOf(u.user_id), bi = badgeInfo();
   main.innerHTML = `
   <section class="card row wrap" style="background:var(--green);color:#FFFEFB;gap:20px">${avatar(u, 96)}
     <div class="col grow" style="gap:4px;min-width:220px"><b style="font-family:var(--head);font-size:26px;font-weight:500">${esc(u.full_name)}${u.nickname ? ' <span style="font-size:17px;color:#DCE0CF">(' + esc(u.nickname) + ')</span>' : ''}</b><span style="color:#E0E5D6">${esc(u.position)} • ${esc(u.role)}</span>
-      <div class="row wrap">${rev.length ? `<span class="tag green">ผู้ตรวจ ${esc(rev.join(', '))}</span>` : ''}${u.is_admin === true ? '<span class="tag" style="background:var(--gold);color:#3E4F3B">ผู้ดูแลระบบ</span>' : ''}</div></div>
-    <div class="col"><button class="btn" id="pf-install" style="display:none">${icon('download', 16)}ติดตั้งแอปบนเครื่องนี้</button><button class="btn danger" id="pf-logout">${icon('out', 16)}ออกจากระบบ</button></div></section>
+      <div class="row wrap">${rev.length ? `<span class="tag green">ผู้ตรวจ ${esc(rev.join(', '))}</span>` : ''}${u.is_admin === true ? '<span class="tag" style="background:var(--gold);color:#3E4F3B">ผู้ดูแลระบบ</span>' : ''}${bi.label ? `<span class="tag">ตัวเลขแจ้งเตือน: ${esc(bi.label)} ${bi.n}</span>` : ''}</div></div>
+    <div class="col"><button class="btn" id="pf-install" style="display:none">${icon('download', 16)}ติดตั้งแอปบนเครื่องนี้</button>${'setAppBadge' in navigator && window.Notification && Notification.permission === 'default' ? '<button class="btn" id="pf-badge">🔔 แสดงตัวเลขบนไอคอนแอป</button>' : ''}<button class="btn danger" id="pf-logout">${icon('out', 16)}ออกจากระบบ</button></div></section>
   <div class="grid g2">
     <section class="card col" style="gap:12px"><h2 style="margin:0">ข้อมูลส่วนตัวและการติดต่อ</h2>
       <div class="fgrid"><label class="f">ชื่อเล่น<input class="inp" id="me-nick" value="${esc(u.nickname || '')}"></label><label class="f">เบอร์มือถือ<input class="inp" id="me-phone" value="${esc(u.phone || '')}" inputmode="tel" placeholder="08x-xxx-xxxx"></label>
@@ -77,6 +77,8 @@ export function profile(main, arg, app) {
   </div>
   ${DEMO ? '<span class="faint">โหมดสาธิต: การแก้ไขเก็บในเครื่องนี้เท่านั้น</span>' : ''}`;
   $('#pf-logout').onclick = () => app.logout();
+  const pb = $('#pf-badge');
+  if (pb) pb.onclick = () => Notification.requestPermission().then(() => app.refresh());
   const pl = $('#pf-line');
   if (pl) pl.onclick = async () => { busy(pl); await app.linkLine(); busy(pl, false); };
   const inst = $('#pf-install');

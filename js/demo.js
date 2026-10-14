@@ -1,6 +1,6 @@
 // ===== โหมดสาธิต: เลียนแบบ API ของ Apps Script ด้วยข้อมูลตัวอย่างในเครื่อง (localStorage) =====
 // โครงตาราง/ชื่อคอลัมน์ตรงกับไฟล์ ฐานข้อมูล_ระบบงานฝ่ายแผนงาน.xlsx ทุกตัว
-const KEY = 'plan-app-demo-v2';
+const KEY = 'plan-app-demo-v3';
 const pad = (n, l = 4) => String(n).padStart(l, '0');
 const nowIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}T${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:00`; };
 const T = (v) => v === true || v === 'TRUE';
@@ -15,13 +15,14 @@ function seed() {
     cfg_Rounds: [['สผ.', '2026-10-10'], ['สร.', '2026-10-31'], ['สร. (งานอาคาร)', '2026-10-31'], ['สป.', '2026-10-20'], ['สบ.', '2026-10-25']].map((r, i) => ({ round_id: 'R0' + (i + 1), fiscal_year: 2570, office: r[0], name: 'รอบ 1', due_date: r[1], remind_days: 3, active: true })),
     cfg_Status: [['s0', 'อยู่ระหว่างจัดทำ', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของเขต', false], ['s1', 'รอแขวงส่ง', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของแขวง', false], ['s2', 'แขวงส่งแล้ว', '#6585A6', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s3', 'ระหว่างแก้ไข', '#D3A04A', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', true], ['s4', 'ส่งกรมแล้ว', '#5A9585', 'ส่งกรมแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s5', 'กรมเห็นชอบ', '#46703F', 'กรมเห็นชอบ', 'ผู้ตรวจ', 'ทั้งหมด', false]]
       .map((r, i) => ({ status_code: r[0], name: r[1], color: r[2], dash_group: r[3], who: r[4], scope: r[5], need_reason: r[6], sort: i })),
-    cfg_MeetKinds: [['meet', 'ประชุม', '#6585A6', false, false], ['online', 'ประชุมออนไลน์', '#5A9585', true, false], ['field', 'กิจกรรม / ลงพื้นที่', '#D3A04A', false, false], ['inspect', 'ตรวจรับงาน', '#9A7A9C', false, true]]
-      .map((r) => ({ kind_id: r[0], name: r[1], color: r[2], has_link: r[3], link_plan: r[4], active: true })),
+    cfg_MeetKinds: [['meet', 'ประชุม', '#6585A6', false, false, false], ['online', 'ประชุมออนไลน์', '#5A9585', true, false, false], ['field', 'กิจกรรม / ลงพื้นที่', '#D3A04A', false, false, true], ['inspect', 'ตรวจรับงาน', '#9A7A9C', false, true, true]]
+      .map((r) => ({ kind_id: r[0], name: r[1], color: r[2], has_link: r[3], link_plan: r[4], offsite: r[5], active: true })),
     cfg_OrderStatus: [{ code: 'ack', name: 'รับทราบ', color: '#6585A6', is_done: false, sort: 1 }, { code: 'doing', name: 'กำลังทำ', color: '#D3A04A', is_done: false, sort: 2 }, { code: 'done', name: 'เสร็จ', color: '#46703F', is_done: true, sort: 3 }],
     cfg_DocKinds: [['D01', 'หนังสือประชุม', 'ประชุม/{ปี}/{เดือน}', 'ประชุม'], ['D02', 'แผนงาน', 'แผนงาน/{ปีงบ}/{หน่วยงาน}', 'แผนงาน'], ['D03', 'ราคาสืบ', 'ราคาสืบ/{ปี}/{เดือน}', 'ไม่ผูก'], ['D04', 'งานสั่งการ', 'งานสั่งการ/{ปี}', 'งานสั่งการ'], ['D05', 'เอกสารทั่วไป', 'ทั่วไป/{ปี}', 'ไม่ผูก']]
       .map((r) => ({ kind_id: r[0], name: r[1], drive_folder: r[2], link_to: r[3], active: true })),
-    cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1, 1], ['วิศวกร', 1, 0, 1, 0, 0, 1, 1], ['นายช่าง', 1, 0, 1, 0, 0, 1, 0], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0, 0], ['ผู้เยี่ยมชม', 0, 0, 0, 0, 0, 0, 0]]
-      .map((r) => ({ role: r[0], view_internal: !!r[1], edit_plan: !!r[2], update_status: !!r[3], manage_meeting: !!r[4], record_order: !!r[5], classify_file: !!r[6], edit_price: !!r[7] })),
+    cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1, 1], ['วิศวกร', 1, 0, 1, 0, 0, 1, 1], ['นายช่าง', 1, 0, 1, 0, 0, 1, 0], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0, 0],
+      ['พนักงานบริการ', 1, 0, 0, 0, 0, 1, 0, 'files'], ['ลูกจ้างชั่วคราว (พขร.)', 1, 0, 0, 0, 0, 0, 0, 'trips'], ['ผู้เยี่ยมชม', 0, 0, 0, 0, 0, 0, 0, 'none']]
+      .map((r) => ({ role: r[0], view_internal: !!r[1], edit_plan: !!r[2], update_status: !!r[3], manage_meeting: !!r[4], record_order: !!r[5], classify_file: !!r[6], edit_price: !!r[7], badge: r[8] || 'meetings' })),
     cfg_MatItems: [
       ['A01', 'AC 60/70', '1505010101500000'], ['A02', 'AC 40/50', '1505010101600000'], ['A03', 'PARA AC', ''], ['A04', 'MC-70', '1505010300400000'], ['A05', 'PMA', '1505010400400000'],
       ['A06', 'CSS-1', '1505010200700000'], ['A07', 'CRS-2', '1505010200400000'], ['A08', 'CMS-2h', '1505010200600000'], ['A09', 'CSS-1h', '1505010200800000'], ['A10', 'CSS-1h (EMA)', '1505010200900000'],
@@ -42,8 +43,8 @@ function seed() {
     ['P04', '[นายช่าง ก]', 'ต้น', 'นายช่างโยธาชำนาญงาน', 'นายช่าง', av('t1'), 'ton.k', '089-555-0101', '1211', 'ton.k@doh.go.th', false],
     ['P05', '[นายช่าง ข]', '', 'นายช่างโยธาปฏิบัติงาน', 'นายช่าง', '', 'boss.n', '', '1212', '', false, 'pending'],
     ['P06', '[ธุรการ]', 'แอน', 'เจ้าพนักงานธุรการ', 'ธุรการ', av('d'), 'ann.s', '083-222-4455', '1201', 'ann.s@doh.go.th', false],
-    ['P07', '[เจ้าหน้าที่ ก]', 'นิด', 'พนักงานราชการ', 'เจ้าหน้าที่', av('s1'), '', '084-333-6677', '1215', '', false, 'active', true],
-    ['P08', '[เจ้าหน้าที่ ข]', '', 'ลูกจ้างประจำ', 'เจ้าหน้าที่', '', '', '', '1216', '', false, 'active', true],
+    ['P07', '[พนักงานบริการ]', 'นิด', 'พนักงานบริการ', 'พนักงานบริการ', av('s1'), 'service.p', '084-333-6677', '1215', '', false, 'active', true],
+    ['P08', '[พขร.]', 'เอก', 'ลูกจ้างชั่วคราว (พนักงานขับรถ)', 'ลูกจ้างชั่วคราว (พขร.)', '', 'driver.p', '', '1216', '', false, 'active', true],
     ['G01', 'ผู้เยี่ยมชม สทล.', '', '—', 'ผู้เยี่ยมชม', '', 'guest.region', '', '', '', false]
   ].map((r) => ({ user_id: r[0], full_name: r[1], nickname: r[2], position: r[3], role: r[4], line_picture_url: r[5], username: r[6], phone: r[7], ext: r[8], email: r[9], is_admin: r[10], status: r[11] || 'active', has_line: !r[12] && r[4] !== 'ผู้เยี่ยมชม', _pw: r[6] ? 'demo1234' : '' }));
 
@@ -103,11 +104,12 @@ function seed() {
   const Meetings = [
     ['MT-0001', d(-6), '09:00', '12:00', 'meet', 'ประชุมประจำเดือนส่วนแผนงาน', 'ห้องประชุมชั้น 2', '', '', 'FL-0005'],
     ['MT-0002', d(2), '09:30', '12:00', 'online', 'ประชุมติดตามแผนงบประมาณ ปี 2570', 'ห้องประชุมชั้น 2 / Zoom', 'https://zoom.us/', '', 'FL-0001'],
-    ['MT-0003', d(2), '13:30', '16:00', 'field', 'ตรวจแผนงานร่วมกับแขวง 3', 'แขวง 3', '', '', ''],
+    ['MT-0003', d(2), '13:30', '16:00', 'field', 'ตรวจแผนงานร่วมกับแขวง 3', 'แขวงทางหลวงน่านที่ 1', '', '', '', 18.7826, 100.7787],
     ['MT-0004', d(4), '10:00', '11:30', 'online', 'ชี้แจงคำขอ สร. (งานอาคาร) ทุกแขวง', 'Zoom', 'https://zoom.us/', '', ''],
     ['MT-0005', d(7), '10:00', '12:00', 'inspect', 'ตรวจรับงานเสริมผิวแอสฟัลต์ ทล.1124', 'หน้างาน แขวง 5', '', '', ''],
-    ['MT-0006', d(15), '10:00', '12:00', 'online', 'ประชุมพิจารณาแผนกับกรม', 'Zoom', 'https://zoom.us/', '', 'FL-0006']
-  ].map((r) => ({ meeting_id: r[0], date: r[1], start: r[2], end: r[3], kind: r[4], title: r[5], place: r[6], online_link: r[7], plan_id: r[8], file_id: r[9], notify_line: true, status: 'normal', created_by: 'P06' }));
+    ['MT-0006', d(15), '10:00', '12:00', 'online', 'ประชุมพิจารณาแผนกับกรม', 'Zoom', 'https://zoom.us/', '', 'FL-0006'],
+    ['MT-0007', d(9), '09:30', '12:00', 'meet', 'ประชุมร่วมสำนักงานจังหวัดแพร่', 'ศาลากลางจังหวัดแพร่', '', '', '', 18.1450, 100.1405]
+  ].map((r) => ({ meeting_id: r[0], date: r[1], start: r[2], end: r[3], kind: r[4], title: r[5], place: r[6], online_link: r[7], plan_id: r[8], file_id: r[9], notify_line: true, status: 'normal', created_by: 'P06', lat: r[10] ?? '', lng: r[11] ?? '', map_url: '' }));
   const MA = { 'MT-0001': ['P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08'], 'MT-0002': ['P01', 'P02', 'P03', 'P06'], 'MT-0003': ['P03', 'P04'], 'MT-0004': ['P02', 'P05'], 'MT-0005': ['P04', 'P05'], 'MT-0006': ['P01', 'P02'] };
   const MeetingAttendees = []; Object.keys(MA).forEach((m) => MA[m].forEach((u) => MeetingAttendees.push({ meeting_id: m, user_id: u })));
   const Orders = [
@@ -254,6 +256,15 @@ const ACTIONS = {
     const saved = upsert(D.Meetings, 'meeting_id', m);
     D.MeetingAttendees = D.MeetingAttendees.filter((a) => a.meeting_id !== m.meeting_id).concat((p.attendees || []).map((x) => ({ meeting_id: m.meeting_id, user_id: x })));
     persist(); return { meeting: saved, attendees: p.attendees || [] };
+  },
+  deleteMeeting: (p, u) => {
+    need(u, 'manage_meeting', 'บทบาทของคุณจัดการประชุมไม่ได้');
+    const D = db().db;
+    if (!D.Meetings.some((m) => m.meeting_id === p.meeting_id)) throw new Error('ไม่พบประชุม');
+    D.Meetings = D.Meetings.filter((m) => m.meeting_id !== p.meeting_id);
+    D.MeetingAttendees = D.MeetingAttendees.filter((a) => a.meeting_id !== p.meeting_id);
+    D.Files.forEach((f) => { if (f.link_type === 'meeting' && f.link_id === p.meeting_id) { f.link_type = ''; f.link_id = ''; } });
+    persist(); return { meeting_id: p.meeting_id };
   },
   saveOrder: (p, u) => {
     need(u, 'record_order', 'บทบาทของคุณบันทึกงานสั่งการไม่ได้');

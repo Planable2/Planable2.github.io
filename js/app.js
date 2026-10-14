@@ -1,7 +1,7 @@
 // ===== จุดเริ่มแอป: เข้าสู่ระบบ, เมนู, เปลี่ยนหน้า =====
 import { CONFIG } from './config.js';
 import { call, token, DEMO } from './api.js';
-import { S, load, isGuest, isAdmin, can, myOpenOrders, pendingFiles, pendingUsers, invalidate } from './store.js';
+import { S, load, isGuest, isAdmin, can, myOpenOrders, pendingFiles, pendingUsers, invalidate, badgeInfo } from './store.js';
 import { esc, $, $$, on } from './util.js';
 import { icon, avatar, toast, closeModal } from './ui.js';
 import { loginView, linkLineFlow } from './views/login.js';
@@ -104,18 +104,28 @@ function render() {
 
 function menu() {
   if (isGuest()) return [{ k: 'home', label: 'Dashboard', href: 'home', cols: [] }];
-  const o = myOpenOrders().length, f = pendingFiles().length, pu = isAdmin() ? pendingUsers().length : 0;
+  const o = myOpenOrders().length, f = can('classify_file') ? pendingFiles().length : 0, pu = isAdmin() ? pendingUsers().length : 0;
   const m = [
     { k: 'home', label: 'หน้าแรก', href: 'home', cols: [['สำรวจ', 'big', [['ภาพรวมแผนทั้งเขต', 'home'], ['กราฟเปรียบเทียบ', 'home']]], ['ทางลัด', 'sm', [['งานสั่งการของฉัน', 'orders'], ['ประชุมที่กำลังจะมาถึง', 'meetings']]]] },
     { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(can('edit_plan') ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },
-    { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', cols: [['ปฏิทิน', 'big', [['ประชุม', 'meetings'], ['วันลา', 'leaves']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new']]]] },
+    { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', badge: calBadge(), cols: [['ปฏิทิน', 'big', [['ประชุม', 'meetings'], ['วันลา', 'leaves']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new']]]] },
     { k: 'files', label: 'คลังเอกสาร', href: 'files', badge: f, cols: [['คลังเอกสาร', 'big', [['รอจัดหมวด', 'files'], ['เอกสารทั้งหมด', 'files/all']]]] },
     { k: 'prices', label: 'ราคาวัสดุ', href: 'prices', cols: [['ราคาวัสดุ', 'big', [['น้ำมัน', 'prices/fuel'], ['ยางแอสฟัลต์', 'prices/asphalt'], ['วัสดุจากแหล่ง', 'prices/quarry'], ['คอนกรีต / ปูนซีเมนต์', 'prices/concrete']]]] },
     { k: 'people', label: 'บุคลากร', href: 'people', badge: pu, cols: [['บุคลากร', 'big', [['โครงสร้างส่วน', 'people'], ['โปรไฟล์ของฉัน', 'profile']]]] }
   ];
   if (isAdmin()) m.push({ k: 'settings', label: 'ตั้งค่า', href: 'settings', cols: [] });
   return m;
+}
+
+/** ตัวเลขบนแท็บปฏิทิน: ประชุมที่ต้องเข้า หรือวันออกนอกสถานที่ (ตามบทบาท) — บทบาทนับเอกสารใช้ตัวเลขของคลังเอกสารอยู่แล้ว */
+const calBadge = () => { if (isGuest()) return 0; const b = badgeInfo(); return b.mode === 'meetings' || b.mode === 'trips' ? b.n : 0; };
+/** ตัวเลขบนไอคอนแอป (PWA ที่ติดตั้งแล้ว • Windows/macOS/ChromeOS และ iPhone ที่อนุญาตการแจ้งเตือน) */
+let lastBadge = -1;
+function appBadge(n) {
+  if (n === lastBadge || !('setAppBadge' in navigator)) return;
+  lastBadge = n;
+  (n ? navigator.setAppBadge(n) : navigator.clearAppBadge()).catch(() => {});
 }
 
 const TOP_KEYS = ['home', 'plans', 'meetings', 'orders', 'more'];
@@ -127,7 +137,8 @@ let shellKey = '', fly = { close() {} };
 function shell(r) {
   const items = menu(), me = S.user;
   const bn = isGuest() ? [] : [['home', 'หน้าแรก', 'home', 'home'], ['plans', 'แผนงาน', 'list', 'plans'], ['meetings', 'ปฏิทิน', 'cal', 'meetings'], ['orders', 'งานสั่งการ', 'task', 'orders'], ['more', 'เพิ่มเติม', 'more', 'more']];
-  const o = myOpenOrders().length, more = isGuest() ? 0 : pendingFiles().length + (isAdmin() ? pendingUsers().length : 0);
+  const o = myOpenOrders().length, more = isGuest() ? 0 : (can('classify_file') ? pendingFiles().length : 0) + (isAdmin() ? pendingUsers().length : 0);
+  appBadge(isGuest() ? 0 : badgeInfo().n);
   const key = JSON.stringify([items, bn, o, more, me.user_id, me.full_name, me.line_picture_url, isGuest()]);
   if (key !== shellKey || !$('#topnav')) { shellKey = key; build(items, bn, o, more, me); }
   sync(r);
@@ -148,7 +159,7 @@ function build(items, bn, o, more, me) {
   <div class="dim" id="dim"></div>
   <div class="mhead" id="mhead"></div>
   <main class="page" id="view"></main>
-  ${bn.length ? `<nav class="bottomnav" aria-label="เมนูล่าง">${bn.map((b) => { const badge = b[0] === 'orders' ? o : b[0] === 'more' ? more : 0; return `<a href="#/${b[3]}" data-k="${b[0]}"><span class="pillbg">${icon(b[2])}</span>${b[1]}${badge ? `<span class="badge">${badge}</span>` : ''}</a>`; }).join('')}</nav>` : ''}`;
+  ${bn.length ? `<nav class="bottomnav" aria-label="เมนูล่าง">${bn.map((b) => { const badge = b[0] === 'orders' ? o : b[0] === 'more' ? more : b[0] === 'meetings' ? calBadge() : 0; return `<a href="#/${b[3]}" data-k="${b[0]}"><span class="pillbg">${icon(b[2])}</span>${b[1]}${badge ? `<span class="badge">${badge}</span>` : ''}</a>`; }).join('')}</nav>` : ''}`;
   const tn = $('#topnav'), box = $('.fly', tn);
   let t = null, cur = null;
   const panelOf = (k) => $(`.fly .panel[data-p="${k}"]`, tn);
