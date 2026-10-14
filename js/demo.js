@@ -1,6 +1,6 @@
 // ===== โหมดสาธิต: เลียนแบบ API ของ Apps Script ด้วยข้อมูลตัวอย่างในเครื่อง (localStorage) =====
 // โครงตาราง/ชื่อคอลัมน์ตรงกับไฟล์ ฐานข้อมูล_ระบบงานฝ่ายแผนงาน.xlsx ทุกตัว
-const KEY = 'plan-app-demo-v1';
+const KEY = 'plan-app-demo-v2';
 const pad = (n, l = 4) => String(n).padStart(l, '0');
 const nowIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}T${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:00`; };
 const T = (v) => v === true || v === 'TRUE';
@@ -20,8 +20,15 @@ function seed() {
     cfg_OrderStatus: [{ code: 'ack', name: 'รับทราบ', color: '#6585A6', is_done: false, sort: 1 }, { code: 'doing', name: 'กำลังทำ', color: '#D3A04A', is_done: false, sort: 2 }, { code: 'done', name: 'เสร็จ', color: '#46703F', is_done: true, sort: 3 }],
     cfg_DocKinds: [['D01', 'หนังสือประชุม', 'ประชุม/{ปี}/{เดือน}', 'ประชุม'], ['D02', 'แผนงาน', 'แผนงาน/{ปีงบ}/{หน่วยงาน}', 'แผนงาน'], ['D03', 'ราคาสืบ', 'ราคาสืบ/{ปี}/{เดือน}', 'ไม่ผูก'], ['D04', 'งานสั่งการ', 'งานสั่งการ/{ปี}', 'งานสั่งการ'], ['D05', 'เอกสารทั่วไป', 'ทั่วไป/{ปี}', 'ไม่ผูก']]
       .map((r) => ({ kind_id: r[0], name: r[1], drive_folder: r[2], link_to: r[3], active: true })),
-    cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1], ['วิศวกร', 1, 0, 1, 0, 0, 1], ['นายช่าง', 1, 0, 1, 0, 0, 1], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0], ['ผู้เยี่ยมชม', 0, 0, 0, 0, 0, 0]]
-      .map((r) => ({ role: r[0], view_internal: !!r[1], edit_plan: !!r[2], update_status: !!r[3], manage_meeting: !!r[4], record_order: !!r[5], classify_file: !!r[6] })),
+    cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1, 1], ['วิศวกร', 1, 0, 1, 0, 0, 1, 1], ['นายช่าง', 1, 0, 1, 0, 0, 1, 0], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0, 0], ['ผู้เยี่ยมชม', 0, 0, 0, 0, 0, 0, 0]]
+      .map((r) => ({ role: r[0], view_internal: !!r[1], edit_plan: !!r[2], update_status: !!r[3], manage_meeting: !!r[4], record_order: !!r[5], classify_file: !!r[6], edit_price: !!r[7] })),
+    cfg_MatItems: [
+      ['A01', 'AC 60/70', '1505010101500000'], ['A02', 'AC 40/50', '1505010101600000'], ['A03', 'PARA AC', ''], ['A04', 'MC-70', '1505010300400000'], ['A05', 'PMA', '1505010400400000'],
+      ['A06', 'CSS-1', '1505010200700000'], ['A07', 'CRS-2', '1505010200400000'], ['A08', 'CMS-2h', '1505010200600000'], ['A09', 'CSS-1h', '1505010200800000'], ['A10', 'CSS-1h (EMA)', '1505010200900000'],
+      ['A11', 'EAP', '1505010200500000'], ['A12', 'CRS-1P', '']
+    ].map((r, i) => ({ item_id: r[0], kind: 'asphalt', name: r[1], unit: 'บาท/ตัน', tpso_code: r[2], sort: i + 1, active: true }))
+      .concat(['หินคลุก', 'หินฝุ่น', 'หิน 3/8"', 'หิน 1/2"', 'หิน 3/4"', 'หิน 1"', 'หินผสมคอนกรีต', 'หินใหญ่', 'ทรายผสมคอนกรีต', 'ทรายถม', 'ดินถม', 'วัสดุคัดเลือก "ก"', 'วัสดุลูกรัง']
+        .map((n, i) => ({ item_id: 'Q' + pad(i + 1, 2), kind: 'quarry', name: n, unit: 'บาท/ลบ.ม.', tpso_code: '', sort: i + 1, active: true }))),
     cfg_Notify: [{ key: 'meet_new', name: 'ประชุมใหม่ / เลื่อน / ยกเลิก', value: 'ทันที', active: true }, { key: 'meet_morning', name: 'สรุปประชุมประจำวัน', value: '07:30', active: true }, { key: 'meet_before', name: 'เตือนก่อนประชุม', value: '30 นาที', active: true }, { key: 'file_reply', name: 'ตอบกลับเมื่อมีไฟล์ในกลุ่ม', value: 'ลิงก์ Drive + ลิงก์เว็บ', active: true }, { key: 'orders', name: 'งานสั่งการ', value: 'ไม่แจ้งใน LINE', active: false }],
     cfg_Settings: [{ key: 'current_fiscal_year', value: 'auto', note: 'auto = คำนวณจากวันที่' }, { key: 'fiscal_start', value: '01-10', note: '' }, { key: 'lock_closed_years', value: 'TRUE', note: '' }, { key: 'fuel_provinces', value: 'แพร่, น่าน, พะเยา, เชียงราย, กรุงเทพฯ', note: '' }, { key: 'fuel_types', value: 'ดีเซล, แก๊สโซฮอล์ 95', note: '' }],
     cfg_LeaveKinds: [['sick', 'ลาป่วย', '#C96B5B'], ['personal', 'ลากิจส่วนตัว', '#D3A04A'], ['vacation', 'ลาพักผ่อน', '#5A9585'], ['maternity', 'ลาคลอดบุตร', '#9A7A9C'], ['ordain', 'ลาอุปสมบท', '#6585A6'], ['other', 'อื่นๆ', '#8C8475']]
@@ -29,7 +36,7 @@ function seed() {
   };
   const av = (k) => 'icons/avatars/av-' + k + '.svg';
   const Users = [
-    ['P01', '[หัวหน้าฝ่าย]', 'พี่ใหญ่', 'หัวหน้าฝ่ายแผนงาน', 'หัวหน้า', av('h'), 'head01', '081-111-2200', '1200', 'head.plan@doh.go.th', false],
+    ['P01', '[หัวหน้าส่วน]', 'พี่ใหญ่', 'หัวหน้าส่วนแผนงาน', 'หัวหน้า', av('h'), 'head01', '081-111-2200', '1200', 'head.plan@doh.go.th', false],
     ['P02', '[วิศวกร ก]', 'ชัย', 'วิศวกรโยธาชำนาญการ', 'วิศวกร', av('e1'), 'admin.plan', '081-234-5678', '1205', 'somchai.w@doh.go.th', true],
     ['P03', '[วิศวกร ข]', 'ฝน', 'วิศวกรโยธาปฏิบัติการ', 'วิศวกร', av('e2'), 'fon.k', '086-777-1234', '1206', 'fon.k@doh.go.th', false],
     ['P04', '[นายช่าง ก]', 'ต้น', 'นายช่างโยธาชำนาญงาน', 'นายช่าง', av('t1'), 'ton.k', '089-555-0101', '1211', 'ton.k@doh.go.th', false],
@@ -94,7 +101,7 @@ function seed() {
 
   const d = (off) => { const x = new Date(); x.setDate(x.getDate() + off); return `${x.getFullYear()}-${pad(x.getMonth() + 1, 2)}-${pad(x.getDate(), 2)}`; };
   const Meetings = [
-    ['MT-0001', d(-6), '09:00', '12:00', 'meet', 'ประชุมประจำเดือนฝ่ายแผนงาน', 'ห้องประชุมชั้น 2', '', '', 'FL-0005'],
+    ['MT-0001', d(-6), '09:00', '12:00', 'meet', 'ประชุมประจำเดือนส่วนแผนงาน', 'ห้องประชุมชั้น 2', '', '', 'FL-0005'],
     ['MT-0002', d(2), '09:30', '12:00', 'online', 'ประชุมติดตามแผนงบประมาณ ปี 2570', 'ห้องประชุมชั้น 2 / Zoom', 'https://zoom.us/', '', 'FL-0001'],
     ['MT-0003', d(2), '13:30', '16:00', 'field', 'ตรวจแผนงานร่วมกับแขวง 3', 'แขวง 3', '', '', ''],
     ['MT-0004', d(4), '10:00', '11:30', 'online', 'ชี้แจงคำขอ สร. (งานอาคาร) ทุกแขวง', 'Zoom', 'https://zoom.us/', '', ''],
@@ -130,7 +137,24 @@ function seed() {
     ['LV-0002', 'P04', 'sick', d(1), d(1), ''],
     ['LV-0003', 'P06', 'personal', d(-2), d(-2), 'ธุระส่วนตัว']
   ].map((r) => ({ leave_id: r[0], user_id: r[1], kind: r[2], date_from: r[3], date_to: r[4], note: r[5], created_by: r[1], created_at: nowIso() }));
-  return { cfg, db: { Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel, Leaves }, sessions: {} };
+  const ym = (off) => { const x = new Date(); x.setDate(1); x.setMonth(x.getMonth() + off); return x.getFullYear() + '-' + pad(x.getMonth() + 1, 2); };
+  const MatDocs = [], MatPrices = [], PV = ['แพร่', 'น่าน', 'พะเยา', 'เชียงราย'];
+  const doc = (kind, source, period, extra, rows) => {
+    const id = 'MD-' + pad(MatDocs.length + 1);
+    MatDocs.push(Object.assign({ doc_id: id, kind, source, period, doc_no: '', doc_date: '', note: '', file_url: '', created_by: 'P06', created_at: nowIso() }, extra));
+    rows.forEach((r) => MatPrices.push(Object.assign({ doc_id: id, area: '-', price: '', price2: '', unit: '' }, r)));
+  };
+  const TPSO = { 'AC 60/70': 43366.67, 'AC 40/50': 51800, 'MC-70': 51730, PMA: 62150, 'CSS-1': 36013.33, 'CRS-2': 35946.67, 'CMS-2h': 36893.33, 'CSS-1h': 42000, 'CSS-1h (EMA)': 50500, EAP: 39326.67 };
+  doc('asphalt', 'พาณิชย์', ym(-1), { note: 'ราคาส่วนกลาง • ไม่รวม VAT' }, Object.entries(TPSO).map(([item, p]) => ({ item, price: p, unit: 'ตัน' })));
+  doc('asphalt', 'พาณิชย์', ym(0), { note: 'ราคาส่วนกลาง • ไม่รวม VAT' }, Object.entries(TPSO).map(([item, p]) => ({ item, price: +(p * 1.012).toFixed(2), unit: 'ตัน' })));
+  const TIPCO = { 'AC 60/70': [41300, 8960], 'AC 40/50': [44800, 9660], 'PARA AC': [49300, 10560], 'MC-70': [60800, 12860], PMA: [54300, 11560], 'CSS-1': [36300, 7960], 'CRS-2': [36100, 7920], 'CMS-2h': [36500, 8000], 'CSS-1h': [36500, 8000], 'CSS-1h (EMA)': [46000, 9900], EAP: [41500, 9000], 'CRS-1P': [51700, 11040] };
+  doc('asphalt', 'Tipco', ym(-1), { doc_no: 'QUO.013/2569', doc_date: ym(-1) + '-01' }, Object.entries(TIPCO).map(([item, p]) => ({ item, price: p[0], price2: p[1] })));
+  const QUARRY = { หินคลุก: [290, 380, 300, 310], หินฝุ่น: [320, 410, 350, 330], 'หิน 3/8"': [350, 420, 400, 410], 'หิน 1/2"': [430, 450, 420, 440], 'หิน 3/4"': [430, 420, 410, 410], 'หิน 1"': [430, 420, 410, 410], หินผสมคอนกรีต: [430, 420, 390, 410], หินใหญ่: [410, 380, 400, 410], ทรายผสมคอนกรีต: [350, 440, 190, 140], ทรายถม: [200, 250, 140, 120], ดินถม: [30, 30, 30, 30], 'วัสดุคัดเลือก "ก"': [40, 40, 40, 40], วัสดุลูกรัง: [50, 50, 50, 50] };
+  doc('quarry', 'สทล.2', d(-28), { doc_no: 'สรุปราคาวัสดุที่แหล่ง ปีงบ 2570', note: 'ไม่รวม VAT 7%' }, Object.entries(QUARRY).flatMap(([item, ps]) => ps.map((price, i) => ({ item, area: PV[i], price }))));
+  const CONC = [['180 กก./ตร.ซม. และรูปทรงกระบอก 140 กก./ตร.ซม.', 1985.98], ['210 กก./ตร.ซม. และรูปทรงกระบอก 180 กก./ตร.ซม.', 2032.71], ['240 กก./ตร.ซม. และรูปทรงกระบอก 210 กก./ตร.ซม.', 2079.44]];
+  doc('concrete', 'พาณิชย์จังหวัด', ym(-1), { note: 'ไม่รวม VAT' }, PV.flatMap((a, i) => ['ตรานกอินทรี', 'ตรา ทีพีไอ'].flatMap((b, j) => CONC.map(([s, p]) => ({ item: `คอนกรีตผสมเสร็จรูปลูกบาศก์ ${s} ${b}`, area: a, price: +(p - j * 160 + i * 25).toFixed(2), unit: 'ลบ.ม.' })))));
+  doc('cement', 'พาณิชย์จังหวัด', ym(-1), { note: 'ไม่รวม VAT' }, PV.flatMap((a, i) => [['ปูนซีเมนต์ปอร์ตแลนด์ ประเภท 1 ตราช้าง', 152], ['ปูนซีเมนต์ผสม ตราเสือ', 128]].map(([item, p]) => ({ item, area: a, price: p + i * 2, unit: 'ถุง' }))));
+  return { cfg, db: { Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel, Leaves, MatDocs, MatPrices }, sessions: {} };
 }
 
 let DB = null;
@@ -270,6 +294,31 @@ const ACTIONS = {
     const elevated = T(u.is_admin) || ['หัวหน้า', 'ธุรการ'].includes(u.role);
     if (!elevated && row.user_id !== u.user_id) throw new Error('ลบได้เฉพาะวันลาของตัวเอง');
     D.Leaves = D.Leaves.filter((x) => x.leave_id !== row.leave_id); persist(); return { leave_id: row.leave_id };
+  },
+  saveMatDoc: (p, u) => {
+    need(u, 'edit_price', 'บทบาทของคุณกรอกราคาวัสดุไม่ได้');
+    const D = db().db, d = Object.assign({}, p.doc), AUTO = ['พาณิชย์', 'พาณิชย์จังหวัด'];
+    d.source = String(d.source || '').trim();
+    if (!d.source) throw new Error('กรุณาระบุแหล่งราคา');
+    if (AUTO.includes(d.source)) throw new Error(`"${d.source}" ระบบดึงให้อัตโนมัติ — ใช้ชื่อแหล่งอื่น`);
+    if (!d.period) throw new Error(d.kind === 'asphalt' ? 'กรุณาเลือกเดือน' : 'กรุณาเลือกวันที่ออกราคา');
+    const has = (v) => v !== '' && v !== null && v !== undefined;
+    const rows = (p.prices || []).filter((x) => x.item && (has(x.price) || has(x.price2))).map((x) => ({ item: x.item, area: x.area || '-', price: has(x.price) ? Number(x.price) : '', price2: has(x.price2) ? Number(x.price2) : '', unit: '' }));
+    if (!rows.length) throw new Error('กรุณากรอกราคาอย่างน้อย 1 รายการ');
+    const dup = D.MatDocs.find((x) => x.kind === d.kind && x.source === d.source && x.period === d.period);
+    if (dup && dup.doc_id !== d.doc_id) throw new Error(`มีราคาของ ${d.source} ${d.kind === 'asphalt' ? 'เดือน' : 'วันที่'}นี้แล้ว — กดแก้ไขแทน`);
+    if (!d.doc_id) { d.doc_id = nextId(D.MatDocs, 'doc_id', 'MD-'); d.created_by = u.user_id; d.created_at = nowIso(); }
+    const saved = upsert(D.MatDocs, 'doc_id', d);
+    D.MatPrices = D.MatPrices.filter((x) => x.doc_id !== d.doc_id).concat(rows.map((r) => Object.assign({ doc_id: d.doc_id }, r)));
+    persist(); return { doc: saved, prices: D.MatPrices.filter((x) => x.doc_id === d.doc_id) };
+  },
+  deleteMatDoc: (p, u) => {
+    need(u, 'edit_price', 'บทบาทของคุณกรอกราคาวัสดุไม่ได้');
+    const D = db().db, x = D.MatDocs.find((y) => y.doc_id === p.doc_id);
+    if (!x) throw new Error('ไม่พบเอกสารราคา');
+    if (['พาณิชย์', 'พาณิชย์จังหวัด'].includes(x.source)) throw new Error('ราคาที่ระบบดึงอัตโนมัติลบไม่ได้');
+    D.MatDocs = D.MatDocs.filter((y) => y.doc_id !== p.doc_id); D.MatPrices = D.MatPrices.filter((y) => y.doc_id !== p.doc_id);
+    persist(); return { doc_id: p.doc_id };
   },
   classifyFile: (p, u) => { need(u, 'classify_file', 'บทบาทของคุณจัดหมวดไฟล์ไม่ได้'); const f = db().db.Files.find((x) => x.file_id === p.file_id); Object.assign(f, { category: p.category || '', link_type: p.link_type || '', link_id: p.link_id || '' }); persist(); return { file: f }; },
   updateProfile: (p, u) => { const f = p.fields || {}; ['nickname', 'phone', 'ext', 'email'].forEach((k) => { if (k in f) u[k] = String(f[k] || '').trim(); }); if (u.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u.email)) throw new Error('รูปแบบอีเมลไม่ถูกต้อง'); persist(); return { user: pub(u) }; },

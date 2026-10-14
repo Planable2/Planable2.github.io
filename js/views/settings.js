@@ -12,7 +12,9 @@ const TABS = [
   ['MeetKinds', 'ประเภทประชุม', 'มีลิงก์ = แสดงปุ่มเข้าประชุม • ผูกแผน = เลือกงานจากทะเบียน (ตรวจรับงาน)', { kind_id: 'รหัส', name: 'ชื่อ', color: 'สี', has_link: 'มีลิงก์ออนไลน์', link_plan: 'ผูกกับแผน', active: 'เปิดใช้' }],
   ['OrderStatus', 'สถานะงานสั่งการ', 'เรียงตามลำดับ • นับว่าเสร็จ = ไม่นับเป็นงานค้าง', { code: 'รหัส', name: 'ชื่อ', color: 'สี', is_done: 'นับว่าเสร็จ', sort: 'ลำดับ' }],
   ['DocKinds', 'หมวดเอกสาร', 'โฟลเดอร์ใน Drive ใช้ {ปี} {เดือน} {ปีงบ} {หน่วยงาน} • ผูกกับ: ไม่ผูก/ประชุม/แผนงาน/งานสั่งการ', { kind_id: 'รหัส', name: 'ชื่อหมวด', drive_folder: 'โฟลเดอร์', link_to: 'ผูกกับ', active: 'เปิดใช้' }],
-  ['Roles', 'บทบาทและสิทธิ์', 'ผู้เยี่ยมชม: ปิดทุกสิทธิ์ (เห็นเฉพาะ Dashboard) • สิทธิ์ตั้งค่าระบบผูกกับผู้ดูแลระบบคนเดียว', { role: 'บทบาท', view_internal: 'ดูข้อมูลภายใน', edit_plan: 'ลงทะเบียนแผน', update_status: 'อัปเดตสถานะ', manage_meeting: 'จัดการประชุม', record_order: 'บันทึกงานสั่งการ', classify_file: 'จัดหมวดไฟล์' }],
+  ['Roles', 'บทบาทและสิทธิ์', 'ผู้เยี่ยมชม: ปิดทุกสิทธิ์ (เห็นเฉพาะ Dashboard) • สิทธิ์ตั้งค่าระบบผูกกับผู้ดูแลระบบคนเดียว', { role: 'บทบาท', view_internal: 'ดูข้อมูลภายใน', edit_plan: 'ลงทะเบียนแผน', update_status: 'อัปเดตสถานะ', manage_meeting: 'จัดการประชุม', record_order: 'บันทึกงานสั่งการ', classify_file: 'จัดหมวดไฟล์', edit_price: 'กรอกราคาวัสดุ' }],
+  ['LeaveKinds', 'ประเภทการลา', 'ใช้ในปฏิทินวันลา • ปิด "เปิดใช้" แทนการลบประเภทที่เคยใช้แล้ว', { kind_id: 'รหัส', name: 'ชื่อ', color: 'สี', active: 'เปิดใช้' }],
+  ['MatItems', 'รายการวัสดุ', 'หมวด: asphalt = ยางแอสฟัลต์, quarry = วัสดุจากแหล่ง • รหัสพาณิชย์ = ดึงราคาส่วนกลางอัตโนมัติ (ว่าง = กรอกจากใบสืบเท่านั้น)', { item_id: 'รหัส', kind: 'หมวด', name: 'ชื่อ', unit: 'หน่วย', tpso_code: 'รหัสพาณิชย์', sort: 'ลำดับ', active: 'เปิดใช้' }],
   ['Notify', 'การแจ้งเตือน LINE', 'แจ้งเฉพาะอีเวนต์ • งานสั่งการแสดงในแอปเท่านั้น', { key: 'รหัส', name: 'การแจ้งเตือน', value: 'ค่า', active: 'เปิด' }],
   ['Settings', 'ค่าระบบ', 'current_fiscal_year = auto (เปลี่ยนเอง 1 ต.ค.) หรือใส่ปี', { key: 'คีย์', value: 'ค่า', note: 'คำอธิบาย' }]
 ];
@@ -34,7 +36,7 @@ function table(box, app) {
   const T = TABS.find((t) => t[0] === ui.tab), key = 'cfg_' + T[0];
   if (!ui.rows) ui.rows = JSON.parse(JSON.stringify(S.cfg[key] || []));
   const cols = Object.keys(T[3]);
-  const isBool = (c) => ui.rows.some((r) => typeof r[c] === 'boolean' || r[c] === 'TRUE' || r[c] === 'FALSE') || ['active', 'has_round', 'need_reason', 'has_link', 'link_plan', 'is_done', 'view_internal', 'edit_plan', 'update_status', 'manage_meeting', 'record_order', 'classify_file'].includes(c);
+  const isBool = (c) => ui.rows.some((r) => typeof r[c] === 'boolean' || r[c] === 'TRUE' || r[c] === 'FALSE') || ['active', 'has_round', 'need_reason', 'has_link', 'link_plan', 'is_done', 'view_internal', 'edit_plan', 'update_status', 'manage_meeting', 'record_order', 'classify_file', 'edit_price'].includes(c);
   box.innerHTML = `<div class="row wrap"><div class="grow"><h2 style="margin:0">${esc(T[1])}</h2><span class="muted small">${esc(T[2])}</span></div>
       <button class="btn sm" id="st-add">${icon('plus', 14)}เพิ่มแถว</button><button class="btn sm pri" id="st-save" ${ui.dirty ? '' : 'disabled'}>บันทึก</button></div>
     <div class="scroll-x"><table class="tbl"><thead><tr>${cols.map((c) => `<th>${esc(T[3][c])}</th>`).join('')}<th></th></tr></thead>

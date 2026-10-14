@@ -1,6 +1,6 @@
 {
-  "name": "Planable-2",
-  "short_name": "Planable-2",
+  "name": "Planable",
+  "short_name": "Planable",
   "description": "ติดตามแผนงาน ปฏิทินประชุม คลังเอกสาร และงานสั่งการ",
   "lang": "th",
   "start_url": "./#/home",

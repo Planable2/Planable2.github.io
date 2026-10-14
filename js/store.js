@@ -5,7 +5,7 @@ export const S = { user: null, perms: {}, cfg: {}, db: {}, ui: {} };
 
 export function load(data) {
   S.user = data.user; S.perms = data.perms || {}; S.cfg = data.cfg || {};
-  S.db = Object.assign({ Plans: [], Segments: [], StatusLog: [], Meetings: [], MeetingAttendees: [], Orders: [], OrderAssignees: [], Files: [], Users: [], Fuel: [], Leaves: [] }, data.db || {});
+  S.db = Object.assign({ Plans: [], Segments: [], StatusLog: [], Meetings: [], MeetingAttendees: [], Orders: [], OrderAssignees: [], Files: [], Users: [], Fuel: [], Leaves: [], MatDocs: [], MatPrices: [] }, data.db || {});
   cache = null;
 }
 let cache = null;

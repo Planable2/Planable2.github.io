@@ -2,9 +2,9 @@
 import { S, cfg, can, attendeesOf, userOf, plans } from '../store.js';
 import { call } from '../api.js';
 import { esc, $, $$, on, toDate, iso, today, TH_MONTH_FULL, TH_DOW, thDate, truthy } from '../util.js';
-import { modal, modalHead, closeModal, toast, busy, avatar, avatarStack, icon, empty } from '../ui.js';
+import { modal, modalHead, closeModal, toast, busy, avatar, avatarStack, icon, empty, calTabs } from '../ui.js';
 
-const ui = { y: null, m: null, sel: null };
+const ui = S.ui.cal || (S.ui.cal = { y: null, m: null, sel: null });   // ใช้ร่วมกับหน้าวันลา: สลับแล้วยังอยู่เดือนเดิม
 const kinds = () => cfg('MeetKinds').filter((k) => truthy(k.active) || k.active === '');
 const kindOf = (id) => cfg('MeetKinds').find((k) => k.kind_id === id) || { name: id, color: '#A39C88' };
 const STAT = { normal: '', moved: 'เลื่อน', cancelled: 'ยกเลิก' };
@@ -18,7 +18,7 @@ export function view(main, arg, app) {
   const byDay = {}; S.db.Meetings.forEach((m) => (byDay[m.date] = byDay[m.date] || []).push(m));
   Object.values(byDay).forEach((l) => l.sort((a, b) => (a.start > b.start ? 1 : -1)));
   const weeks = days[35].getMonth() !== ui.m ? 5 : 6;
-  main.innerHTML = `
+  main.innerHTML = `${calTabs('meetings')}
   <div class="page-head"><div class="t"><h1>${TH_MONTH_FULL[ui.m]} ${ui.y + 543}</h1><span class="muted small">ประชุม • กิจกรรม • ตรวจรับงาน — แจ้งกลุ่ม LINE อัตโนมัติเมื่อเพิ่ม/เลื่อน/ยกเลิก</span></div>
     <div class="row"><button class="icon-btn" id="mt-prev" aria-label="เดือนก่อน">${icon('back')}</button><button class="btn sm" id="mt-today">วันนี้</button><button class="icon-btn" id="mt-next" aria-label="เดือนถัดไป">${icon('chev')}</button></div>
     ${can('manage_meeting') ? `<button class="btn pri" id="mt-add">${icon('plus', 16)}เพิ่มประชุม</button>` : ''}</div>
@@ -72,7 +72,7 @@ function form(m, app) {
     ${truthy(k.has_link) ? `<label class="f">ลิงก์ประชุมออนไลน์<input class="inp" data-k="online_link" value="${esc(f.online_link)}" placeholder="https://"></label>` : ''}
     ${truthy(k.link_plan) ? `<label class="f">ผูกกับแผนงาน *<select class="inp" data-k="plan_id"><option value="">— เลือกจากทะเบียนแผน —</option>${plans().filter((p) => p.fiscal_year >= Math.max(...plans().map((x) => x.fiscal_year)) - 1).map((p) => `<option value="${esc(p.plan_id)}" ${p.plan_id === f.plan_id ? 'selected' : ''}>${esc(p.fiscal_year + ' • ' + p.unit + ' • ' + p.work_code + ' ' + p.work_name)}</option>`).join('')}</select></label>` : ''}
     <label class="f">หนังสือประชุม<select class="inp" data-k="file_id"><option value="">— ไม่ระบุ —</option>${meetFiles.map((x) => `<option value="${esc(x.file_id)}" ${x.file_id === f.file_id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
-    <div class="col"><div class="row small muted"><span class="grow">ผู้เข้าร่วม (${f.att.length})</span><button class="chip" id="mf-all">ทุกคนในฝ่าย</button></div>
+    <div class="col"><div class="row small muted"><span class="grow">ผู้เข้าร่วม (${f.att.length})</span><button class="chip" id="mf-all">ทุกคนในส่วน</button></div>
       <div class="row wrap">${people.map((u) => `<button class="chip ${f.att.includes(u.user_id) ? 'on' : ''}" data-u="${esc(u.user_id)}" style="padding-left:3px">${avatar(u, 26)}${esc(u.user_id === S.user.user_id ? 'คุณ' : u.full_name)}</button>`).join('')}</div></div>
     ${!isNew ? `<label class="f">สถานะ<select class="inp" data-k="status">${Object.entries({ normal: 'ปกติ', moved: 'เลื่อน', cancelled: 'ยกเลิก' }).map(([v, l]) => `<option value="${v}" ${f.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
     <label class="row small"><input type="checkbox" id="mf-notify" ${f.notify_line !== false ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--green2)">แจ้งกลุ่ม LINE (บอทส่งทันที + เตือนก่อนประชุม)</label>

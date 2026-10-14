@@ -86,7 +86,7 @@ button.kpi:hover, a.kpi:hover { transform: translateY(-2px); box-shadow: var(--s
 .kpi .l { font-size: 13px; } .kpi .s { font-size: 12px; color: var(--muted); }
 .kpi.sel { border-color: var(--green); }
 
-.btn { height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid #D8D0BE; background: var(--card); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; transition: background-color .25s, transform .3s var(--ease2), box-shadow .3s; white-space: nowrap; }
+.btn { height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid #D8D0BE; background: var(--card); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; transition: background-color .25s, transform .3s var(--ease2), box-shadow .3s; white-space: nowrap; }
 .btn:hover { box-shadow: 0 6px 16px rgba(74, 93, 70, .12); }
 .btn:active { transform: scale(.98); }
 .btn.pri { background: var(--green); color: #FFFEFB; border-color: var(--green); font-weight: 600; }
@@ -99,8 +99,9 @@ button.kpi:hover, a.kpi:hover { transform: translateY(-2px); box-shadow: var(--s
 .chip.on { background: var(--green); color: #fff; border-color: var(--green); }
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
 .seg-ctl { display: inline-flex; gap: 3px; background: var(--soft2); border-radius: 20px; padding: 3px; flex-wrap: wrap; }
-.seg-ctl button { height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: transparent; color: var(--muted); font-size: 13px; }
-.seg-ctl button.on { background: var(--green); color: #FFFEFB; }
+.seg-ctl button, .seg-ctl a { height: 34px; padding: 0 12px; border: 0; border-radius: 17px; background: transparent; color: var(--muted); font-size: 13px; display: inline-flex; align-items: center; transition: background-color .25s var(--ease), color .25s var(--ease); }
+.seg-ctl a { padding: 0 18px; font-size: 14px; }
+.seg-ctl button.on, .seg-ctl a.on { background: var(--green); color: #FFFEFB; }
 
 label.f { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 .inp, select.inp, textarea.inp { height: 44px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); padding: 0 14px; font-size: 14px; color: var(--ink); width: 100%; transition: border-color .2s, box-shadow .2s; }

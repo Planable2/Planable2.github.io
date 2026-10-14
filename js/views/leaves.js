@@ -2,9 +2,9 @@
 import { S, cfg, userOf } from '../store.js';
 import { call } from '../api.js';
 import { esc, $, $$, on, toDate, iso, today, TH_MONTH_FULL, TH_DOW, thDate, truthy } from '../util.js';
-import { modal, modalHead, closeModal, toast, busy, avatar, icon, empty } from '../ui.js';
+import { modal, modalHead, closeModal, toast, busy, avatar, icon, empty, calTabs } from '../ui.js';
 
-const ui = { y: null, m: null, sel: null };
+const ui = S.ui.cal || (S.ui.cal = { y: null, m: null, sel: null });
 const kinds = () => cfg('LeaveKinds').filter((k) => truthy(k.active) || k.active === '');
 const kindOf = (id) => cfg('LeaveKinds').find((k) => k.kind_id === id) || { name: id, color: '#A39C88' };
 const canManage = (l) => S.user.is_admin === true || S.user.role === 'หัวหน้า' || S.user.role === 'ธุรการ' || l.user_id === S.user.user_id;
@@ -17,8 +17,8 @@ export function view(main, arg, app) {
   const days = []; for (let i = 0; i < 42; i++) { const dd = new Date(start); dd.setDate(start.getDate() + i); days.push(dd); }
   const weeks = days[35].getMonth() !== ui.m ? 5 : 6;
   const byDay = {}; days.slice(0, weeks * 7).forEach((dd) => { const k = iso(dd); byDay[k] = S.db.Leaves.filter((l) => within(k, l)); });
-  main.innerHTML = `
-  <div class="page-head"><div class="t"><h1>${TH_MONTH_FULL[ui.m]} ${ui.y + 543}</h1><span class="muted small">ปฏิทินวันลา — บันทึกวันลาของตัวเอง ดูภาพรวมทั้งฝ่าย</span></div>
+  main.innerHTML = `${calTabs('leaves')}
+  <div class="page-head"><div class="t"><h1>${TH_MONTH_FULL[ui.m]} ${ui.y + 543}</h1><span class="muted small">ปฏิทินวันลา — บันทึกวันลาของตัวเอง ดูภาพรวมทั้งส่วน</span></div>
     <div class="row"><button class="icon-btn" id="lv-prev" aria-label="เดือนก่อน">${icon('back')}</button><button class="btn sm" id="lv-today">วันนี้</button><button class="icon-btn" id="lv-next" aria-label="เดือนถัดไป">${icon('chev')}</button></div>
     <button class="btn pri" id="lv-add">${icon('plus', 16)}ลงวันลา</button></div>
   <div class="legend">${kinds().map((k) => `<span><i style="background:${esc(k.color)}"></i>${esc(k.name)}</span>`).join('')}</div>

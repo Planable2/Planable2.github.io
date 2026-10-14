@@ -50,6 +50,9 @@ export function statusPill(code) {
   return `<span class="pill" style="--c:${esc(s.color)}">${esc(s.name)}</span>`;
 }
 
+/** ปุ่มสลับในแท็บปฏิทิน: ประชุม | วันลา */
+export const calTabs = (cur) => `<div class="seg-ctl" role="tablist" style="align-self:flex-start">${[['meetings', 'ประชุม'], ['leaves', 'วันลา']].map(([k, l]) => `<a href="#/${k}" role="tab" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}">${l}</a>`).join('')}</div>`;
+
 export const empty = (msg) => `<div class="empty">${esc(msg)}</div>`;
 
 export function busy(btn, on = true) {

@@ -14,16 +14,18 @@ import * as Files from './views/files.js';
 import * as People from './views/people.js';
 import * as Settings from './views/settings.js';
 import * as Misc from './views/misc.js';
+import * as Prices from './views/prices.js';
 
 const ROUTES = {
   home: { mod: Home, title: 'หน้าแรก', nav: 'home', guest: true },
   plans: { mod: Plans, title: 'ทะเบียนแผน', nav: 'plans' },
   plan: { mod: Plans, fn: 'detail', title: 'รายละเอียดแผน', nav: 'plans' },
   meetings: { mod: Meetings, title: 'ปฏิทินประชุม', nav: 'meetings' },
-  leaves: { mod: Leaves, title: 'ปฏิทินวันลา', nav: 'leaves' },
+  leaves: { mod: Leaves, title: 'ปฏิทินวันลา', nav: 'meetings' },
   orders: { mod: Orders, title: 'งานสั่งการ', nav: 'orders' },
   files: { mod: Files, title: 'คลังเอกสาร', nav: 'files' },
-  fuel: { mod: Misc, fn: 'fuel', title: 'ราคาน้ำมัน', nav: 'fuel' },
+  prices: { mod: Prices, title: 'ราคาวัสดุ', nav: 'prices' },
+  fuel: { mod: Prices, fn: 'fuelRoute', title: 'ราคาวัสดุ', nav: 'prices' },
   people: { mod: People, title: 'บุคลากร', nav: 'people' },
   profile: { mod: People, fn: 'profile', title: 'โปรไฟล์ของฉัน', nav: 'profile' },
   settings: { mod: Settings, title: 'ตั้งค่าระบบ', nav: 'settings', admin: true },
@@ -107,25 +109,24 @@ function menu() {
     { k: 'home', label: 'หน้าแรก', href: 'home', cols: [['สำรวจ', 'big', [['ภาพรวมแผนทั้งเขต', 'home'], ['กราฟเปรียบเทียบ', 'home']]], ['ทางลัด', 'sm', [['งานสั่งการของฉัน', 'orders'], ['ประชุมที่กำลังจะมาถึง', 'meetings']]]] },
     { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(can('edit_plan') ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },
-    { k: 'meetings', label: 'ปฏิทินประชุม', href: 'meetings', cols: [['ปฏิทิน', 'big', [['ปฏิทินเดือนนี้', 'meetings'], ...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : [])]]] },
-    { k: 'leaves', label: 'ปฏิทินวันลา', href: 'leaves', cols: [['วันลา', 'big', [['ปฏิทินเดือนนี้', 'leaves'], ['ลงวันลา', 'leaves/new']]]] },
+    { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', cols: [['ปฏิทิน', 'big', [['ประชุม', 'meetings'], ['วันลา', 'leaves']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new']]]] },
     { k: 'files', label: 'คลังเอกสาร', href: 'files', badge: f, cols: [['คลังเอกสาร', 'big', [['รอจัดหมวด', 'files'], ['เอกสารทั้งหมด', 'files/all']]]] },
-    { k: 'fuel', label: 'ราคาน้ำมัน', href: 'fuel', cols: [] },
-    { k: 'people', label: 'บุคลากร', href: 'people', badge: pu, cols: [['บุคลากร', 'big', [['โครงสร้างฝ่าย', 'people'], ['โปรไฟล์ของฉัน', 'profile']]]] }
+    { k: 'prices', label: 'ราคาวัสดุ', href: 'prices', cols: [['ราคาวัสดุ', 'big', [['น้ำมัน', 'prices/fuel'], ['ยางแอสฟัลต์', 'prices/asphalt'], ['วัสดุจากแหล่ง', 'prices/quarry'], ['คอนกรีต / ปูน', 'prices/concrete']]]] },
+    { k: 'people', label: 'บุคลากร', href: 'people', badge: pu, cols: [['บุคลากร', 'big', [['โครงสร้างส่วน', 'people'], ['โปรไฟล์ของฉัน', 'profile']]]] }
   ];
   if (isAdmin()) m.push({ k: 'settings', label: 'ตั้งค่า', href: 'settings', cols: [] });
   return m;
 }
 
 const TOP_KEYS = ['home', 'plans', 'meetings', 'orders', 'more'];
-const MORE_KEYS = ['files', 'fuel', 'people', 'profile', 'settings', 'leaves', 'more'];
+const MORE_KEYS = ['files', 'prices', 'people', 'profile', 'settings', 'more'];
 const logo = (s) => `<img class="logo" src="icons/logo-tile.png" alt="" width="${s}" height="${s}">`;
 let shellKey = '', fly = { close() {} };
 
 /** เมนูสร้างครั้งเดียวแล้วคงอยู่ข้ามหน้า (สร้างใหม่เฉพาะเมื่อรายการ/ป้ายตัวเลขเปลี่ยน) — เปลี่ยนหน้าแล้วเมนูไม่กระพริบ */
 function shell(r) {
   const items = menu(), me = S.user;
-  const bn = isGuest() ? [] : [['home', 'หน้าแรก', 'home', 'home'], ['plans', 'แผนงาน', 'list', 'plans'], ['meetings', 'ประชุม', 'cal', 'meetings'], ['orders', 'งานสั่งการ', 'task', 'orders'], ['more', 'เพิ่มเติม', 'more', 'more']];
+  const bn = isGuest() ? [] : [['home', 'หน้าแรก', 'home', 'home'], ['plans', 'แผนงาน', 'list', 'plans'], ['meetings', 'ปฏิทิน', 'cal', 'meetings'], ['orders', 'งานสั่งการ', 'task', 'orders'], ['more', 'เพิ่มเติม', 'more', 'more']];
   const o = myOpenOrders().length, more = isGuest() ? 0 : pendingFiles().length + (isAdmin() ? pendingUsers().length : 0);
   const key = JSON.stringify([items, bn, o, more, me.user_id, me.full_name, me.line_picture_url, isGuest()]);
   if (key !== shellKey || !$('#topnav')) { shellKey = key; build(items, bn, o, more, me); }

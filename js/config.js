@@ -4,6 +4,6 @@
 export const CONFIG = {
   API_URL: 'https://atgaetzpmxpyawpnrpem.supabase.co/functions/v1/api',
   LIFF_ID: '2011983561-yb9UBuYK',
-  APP_NAME: 'Planable-2',
-  ORG_NAME: 'Planable-2'
+  APP_NAME: 'Planable',
+  ORG_NAME: 'Planable'
 };

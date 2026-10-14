@@ -1,10 +1,10 @@
 // Service Worker: เก็บไฟล์หน้าเว็บไว้ในเครื่อง เปิดเร็ว/ติดตั้งเป็นแอปได้ • ข้อมูลจาก API ไม่เก็บ (ดึงสดทุกครั้ง)
-const VERSION = 'plan-app-v1.3.0';   // เปลี่ยนเลขนี้ทุกครั้งที่อัปเดตไฟล์บน GitHub Pages
+const VERSION = 'plan-app-v1.4.0';   // เปลี่ยนเลขนี้ทุกครั้งที่อัปเดตไฟล์บน GitHub Pages
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/config.js', './js/api.js', './js/demo.js', './js/store.js', './js/util.js', './js/ui.js', './js/charts.js',
   './js/views/login.js', './js/views/home.js', './js/views/plans.js', './js/views/meetings.js', './js/views/leaves.js', './js/views/orders.js',
-  './js/views/files.js', './js/views/people.js', './js/views/settings.js', './js/views/misc.js',
+  './js/views/files.js', './js/views/people.js', './js/views/settings.js', './js/views/misc.js', './js/views/prices.js',
   './icons/logo-tile.png', './icons/favicon-64.png', './icons/icon-192.png', './icons/icon-512.png'
 ];
 
