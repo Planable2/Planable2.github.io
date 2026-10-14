@@ -1,5 +1,5 @@
 // ===== เมนูเพิ่มเติม (มือถือ) + ราคาน้ำมัน =====
-import { S, isAdmin, pendingFiles, pendingUsers } from '../store.js';
+import { S, isAdmin, pendingFiles, pendingUsers, setting } from '../store.js';
 import { DEMO } from '../api.js';
 import { CONFIG } from '../config.js';
 import { esc, $, on, thDate, uniq, iso, today, toDate, by } from '../util.js';
@@ -33,14 +33,19 @@ export function fuel(main, head = '') {
   const range = (k) => { if (k === 'all') return { from: dates[0], to: end }; const s = toDate(end); if (k === 'm') s.setDate(1); else s.setMonth(s.getMonth() - 3); return { from: iso(s), to: end }; };
   const ui = main._fuel || (main._fuel = { prov: provs[0], ...range('m') });
   if (!provs.includes(ui.prov)) ui.prov = provs[0];
+  // ชนิดน้ำมันที่แสดง: ค่าเริ่มต้นตาม ตั้งค่า › fuel_types • เลือกเปิด/ปิดได้
+  const pref = setting('fuel_types', '').split(',').map((x) => x.trim()).filter((x) => fuels.includes(x));
+  if (!ui.types || !ui.types.some((t) => fuels.includes(t))) ui.types = pref.length ? pref : fuels.slice(0, 2);
+  const shown = fuels.filter((f) => ui.types.includes(f));
+  const COLORS = ['#4A6B42', '#C66B3D', '#6585A6', '#9A7A9C', '#D3A04A', '#5A9585', '#C96B5B', '#8C8475', '#3E5A38'];
   const from = ui.from <= ui.to ? ui.from : ui.to, to = ui.from <= ui.to ? ui.to : ui.from;
 
   // PTT OR บันทึกเฉพาะวันที่ราคาเปลี่ยน → ต่อเส้นระหว่างจุด และลากราคาก่อนช่วงมาเป็นจุดเริ่ม
-  const series = fuels.map((f, i) => {
+  const series = shown.map((f) => {
     const pts = rows.filter((r) => r.province === ui.prov && r.fuel === f).sort(by('date'));
     const before = pts.filter((r) => r.date <= from).pop();
     const steps = (before ? [{ date: from, v: Number(before.price) }] : []).concat(pts.filter((r) => r.date > from && r.date <= to).map((r) => ({ date: r.date, v: Number(r.price) })));
-    return { f, color: ['#4A6B42', '#C66B3D', '#6585A6'][i % 3], steps, dots: pts.filter((r) => r.date >= from && r.date <= to) };
+    return { f, color: COLORS[fuels.indexOf(f) % COLORS.length], steps, dots: pts.filter((r) => r.date >= from && r.date <= to) };
   });
   const vals = series.flatMap((s) => s.steps.map((p) => p.v)), has = vals.length > 0;
   const mn = Math.min(...vals) - 0.3, mx = Math.max(...vals) + 0.3;
@@ -51,8 +56,9 @@ export function fuel(main, head = '') {
   const presetOn = (k) => { const r = range(k); return r.from === ui.from && r.to === ui.to; };
   main.innerHTML = `${head}
   <div class="page-head"><div class="t"><h1>ราคาน้ำมันรายจังหวัด</h1><span class="muted small">บาท/ลิตร • ณ ${thDate(last)} • แหล่ง ${esc(rows[rows.length - 1].source || 'PTT OR')} • เทียบวันก่อนหน้า</span></div><a class="btn" href="https://www.pttor.com/th/oil_price" target="_blank" rel="noopener">${icon('ext', 16)}เว็บ PTT OR</a></div>
-  <section class="card flush scroll-x"><table class="tbl"><thead><tr><th style="padding-left:18px">จังหวัด</th>${fuels.map((f) => `<th class="r">${esc(f)}</th>`).join('')}</tr></thead>
-    <tbody>${provs.map((p) => `<tr><td style="padding-left:18px"><b>${esc(p)}</b></td>${fuels.map((f) => { const v = price(last, p, f), o = prev ? price(prev, p, f) : null; return `<td class="r"><b style="font-family:var(--head);font-size:21px;font-weight:500">${v === null ? '—' : v.toFixed(2)}</b><br>${chip(v !== null && o !== null ? +(v - o).toFixed(2) : null)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></section>
+  ${fuels.length > 1 ? `<div class="row wrap" style="gap:6px"><span class="muted small">ชนิดน้ำมัน:</span>${fuels.map((f) => `<button class="chip ${shown.includes(f) ? 'on' : ''}" data-ft="${esc(f)}">${esc(f)}</button>`).join('')}</div>` : ''}
+  <section class="card flush scroll-x"><table class="tbl"><thead><tr><th style="padding-left:18px">จังหวัด</th>${shown.map((f) => `<th class="r">${esc(f)}</th>`).join('')}</tr></thead>
+    <tbody>${provs.map((p) => `<tr><td style="padding-left:18px"><b>${esc(p)}</b></td>${shown.map((f) => { const v = price(last, p, f), o = prev ? price(prev, p, f) : null; return `<td class="r"><b style="font-family:var(--head);font-size:21px;font-weight:500">${v === null ? '—' : v.toFixed(2)}</b><br>${chip(v !== null && o !== null ? +(v - o).toFixed(2) : null)}</td>`; }).join('')}</tr>`).join('')}</tbody></table></section>
   <section class="card col" style="gap:12px">
     <div class="row wrap"><h2 class="grow" style="margin:0">แนวโน้มราคา</h2><select class="inp" id="fu-prov" style="width:auto;height:38px" aria-label="จังหวัด">${provs.map((p) => `<option ${p === ui.prov ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></div>
     <div class="row wrap" style="gap:10px;align-items:flex-end">
@@ -65,7 +71,9 @@ export function fuel(main, head = '') {
       <svg viewBox="0 0 1000 200" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">${series.map((s) => `<path d="${path(s)}" fill="none" stroke="${s.color}" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`).join('')}</svg>
       ${series.map((s) => s.dots.map((r) => `<span data-tip="${esc(s.f + ' • ' + thDate(r.date) + '|' + Number(r.price).toFixed(2) + ' บาท/ลิตร')}" style="position:absolute;left:${(X(r.date) / 10).toFixed(2)}%;bottom:${(((Number(r.price) - mn) / (mx - mn)) * 100).toFixed(2)}%;width:10px;height:10px;margin:0 0 -5px -5px;border-radius:50%;background:${s.color}"></span>`).join('')).join('')}</div>
     <div class="row faint"><span class="grow">${thDate(from)}</span><span class="grow center">${thDate(mid)}</span><span>${thDate(to)}</span></div>
-    <span class="faint small">จุด = วันที่ราคาเปลี่ยน</span>` : empty('ไม่มีข้อมูลราคาในช่วงวันที่นี้')}</section>`;
+    <span class="faint small">จุด = วันที่ราคาเปลี่ยน • ในระบบมีข้อมูล ${thDate(dates[0])} – ${thDate(last)}</span>` : empty('ไม่มีข้อมูลราคาในช่วงวันที่นี้')}
+    ${from < dates[0] ? `<div class="note grey small">ช่วงที่เลือกเริ่มก่อนข้อมูลที่มี (เก่าสุด ${thDate(dates[0])}) — ระบบดึงย้อนหลัง 12 เดือนให้อัตโนมัติในรอบแรก ถ้าต้องการมากกว่านั้น สั่งที่ GitHub › Actions › fuel-price › Run workflow แล้วใส่จำนวนเดือน</div>` : ''}</section>`;
+  on(main, '[data-ft]', 'click', (e, b) => { const f = b.dataset.ft; ui.types = shown.includes(f) ? shown.filter((x) => x !== f) : shown.concat([f]); if (!ui.types.length) ui.types = [f]; fuel(main, head); });
   $('#fu-prov').onchange = (e) => { ui.prov = e.target.value; fuel(main, head); };
   $('#fu-from').onchange = (e) => { if (e.target.value) { ui.from = e.target.value; fuel(main, head); } };
   $('#fu-to').onchange = (e) => { if (e.target.value) { ui.to = e.target.value; fuel(main, head); } };

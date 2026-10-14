@@ -51,7 +51,7 @@ function asphalt(main, app, head) {
   ${names.length ? `<section class="card flush scroll-x"><table class="tbl"><thead>
     <tr><th style="padding-left:18px">ชนิดยาง</th>${cols.map((c) => `<th class="r" colspan="${c.two ? 2 : 1}"><b>${esc(srcLabel(c.s))}</b>${fileLink(c.d)}${edit && !AUTO.includes(c.s) ? ` <button class="chip" style="height:26px" data-ed="${esc(c.d.doc_id)}">แก้ไข</button>` : ''}<br><span class="faint">${c.d.period !== cur ? 'ใช้ราคา ' : ''}${thMonth(c.d.period)}${c.d.doc_no ? ' • ' + esc(c.d.doc_no) : ''}</span></th>`).join('')}</tr>
     <tr><th></th>${cols.map((c) => (c.two ? '<th class="r faint">Bulk</th><th class="r faint">บรรจุภัณฑ์</th>' : '<th class="r faint">Bulk</th>')).join('')}</tr></thead>
-    <tbody>${names.map((n) => { const low = lowest(cols.map((c) => c.p[n] && c.p[n].price)); return `<tr><td style="padding-left:18px"><b>${esc(n)}</b></td>${cols.map((c) => { const r = c.p[n] || {}; return cell(r.price, low) + (c.two ? `<td class="r num">${fmt(r.price2)}</td>` : ''); }).join('')}</tr>`; }).join('')}</tbody></table></section>
+    <tbody>${names.map((n) => { const low = lowest(cols.map((c) => c.p[n] && c.p[n].price)); return `<tr><td style="padding-left:18px;white-space:nowrap"><b>${esc(n)}</b></td>${cols.map((c) => { const r = c.p[n] || {}; return cell(r.price, low) + (c.two ? `<td class="r num">${fmt(r.price2)}</td>` : ''); }).join('')}</tr>`; }).join('')}</tbody></table></section>
     ${cols.some((c) => c.d.note) ? `<p class="faint small" style="margin:0">${cols.filter((c) => c.d.note).map((c) => esc(srcLabel(c.s) + ': ' + c.d.note)).join(' • ')}</p>` : ''}`
     : empty('ยังไม่มีราคาเดือนนี้ — ราคาพาณิชย์ดึงอัตโนมัติทุกเช้า • ใบสืบ Tipco/Zola กด "กรอกราคาจากใบสืบ"')}`;
   $('#pa-m').onchange = (e) => { if (e.target.value) { ui.month = e.target.value; view(main, '', app); } };
@@ -71,7 +71,7 @@ function quarry(main, app, head) {
     return `<section class="card flush scroll-x">
       <div class="row wrap" style="padding:14px 18px 6px"><span class="grow"><b>${esc(d.source)}</b> • ราคาที่ออกเมื่อ ${thDate(d.period)}${fileLink(d)}${d.doc_no || d.note ? `<br><span class="faint small">${esc([d.doc_no, d.note].filter(Boolean).join(' • '))}</span>` : ''}</span>${edit ? `<button class="btn sm" data-ed="${esc(d.doc_id)}">แก้ไข</button>` : ''}</div>
       <table class="tbl"><thead><tr><th style="padding-left:18px">วัสดุ</th>${areas.map((a) => `<th class="r">${esc(a)}</th>`).join('')}</tr></thead>
-      <tbody>${names.map((n) => { const low = lowest(areas.map((a) => p[n][a])); return `<tr><td style="padding-left:18px"><b>${esc(n)}</b> <span class="faint small">${esc(unit(n))}</span></td>${areas.map((a) => cell(p[n][a], low)).join('')}</tr>`; }).join('')}</tbody></table></section>`;
+      <tbody>${names.map((n) => { const low = lowest(areas.map((a) => p[n][a])); return `<tr><td style="padding-left:18px;white-space:nowrap"><b>${esc(n)}</b> <span class="faint small">${esc(unit(n))}</span></td>${areas.map((a) => cell(p[n][a], low)).join('')}</tr>`; }).join('')}</tbody></table></section>`;
   };
   const issued = all.slice().sort(by('period')).reverse();
   main.innerHTML = `${head}
@@ -122,9 +122,11 @@ function docForm(kind, doc, period, main, app) {
   const names = uniq(items(kind).map((i) => i.name).concat(old.map((r) => r.item)));
   const srcs = uniq((isA ? ['Tipco', 'Zola'] : ['สทล.2']).concat(docsOf(kind).map((d) => d.source))).filter((s) => !AUTO.includes(s));
   const inp = (n, a, k, w) => `<td><input class="inp num" style="height:36px;min-width:${w}px" data-n="${esc(n)}" data-a="${esc(a)}" data-k="${k}" value="${esc(v(n, a, k))}" inputmode="decimal"></td>`;
+  const row = (n) => `<tr><td><b>${esc(n)}</b></td>${isA ? inp(n, '-', 'price', 110) + inp(n, '-', 'price2', 110) : provs.map((a) => inp(n, a, 'price', 90)).join('')}</tr>`;
   modal(`${modalHead(doc ? 'แก้ไขราคา ' + doc.source : isA ? 'กรอกราคายางจากใบสืบ' : 'ออกราคาวัสดุจากแหล่ง', isA ? 'ไม่รวม VAT • Bulk = บาท/ตัน • ช่องว่าง = ไม่มีราคา' : 'มีผลตั้งแต่วันที่ออกราคา จนกว่าจะออกราคาใหม่ • ช่องว่าง = ไม่มีราคา')}
     <div class="fgrid">
-      <label class="f">แหล่งราคา *<input class="inp" id="md-src" list="md-srcs" value="${esc(f.source)}"><datalist id="md-srcs">${srcs.map((s) => `<option value="${esc(s)}">`).join('')}</datalist></label>
+      <label class="f">${isA ? 'บริษัท / แหล่งราคา *' : 'แหล่งราคา *'}<select class="inp" id="md-srcsel">${srcs.map((s) => `<option ${s === f.source ? 'selected' : ''}>${esc(s)}</option>`).join('')}<option value="__new">+ เพิ่ม${isA ? 'บริษัท' : 'แหล่ง'}ใหม่…</option></select></label>
+      <label class="f" id="md-srcnew" style="display:none">ชื่อ${isA ? 'บริษัท' : 'แหล่ง'}ใหม่ *<input class="inp" id="md-src" placeholder="${isA ? 'เช่น Shell, ESSO, บจก. …' : 'เช่น สทล.2'}"></label>
       <label class="f">${isA ? 'เดือน *' : 'วันที่ออกราคา (มีผล) *'}<input class="inp" type="${isA ? 'month' : 'date'}" id="md-per" value="${esc(f.period)}"></label>
       <label class="f">เลขที่เอกสาร<input class="inp" id="md-no" value="${esc(f.doc_no || '')}"></label>
       ${isA ? `<label class="f">วันที่ในใบสืบ<input class="inp" type="date" id="md-dd" value="${esc(f.doc_date || '')}"></label>` : ''}
@@ -132,17 +134,32 @@ function docForm(kind, doc, period, main, app) {
     <label class="f">ลิงก์ไฟล์เอกสาร (Google Drive ฯลฯ)<input class="inp" id="md-url" value="${esc(f.file_url || '')}" placeholder="https://"></label>
     <label class="f">หมายเหตุ<input class="inp" id="md-note" value="${esc(f.note || '')}" placeholder="${isA ? '' : 'เช่น ราคาประชุมเมื่อ … • ไม่รวม VAT 7%'}"></label>
     <div class="scroll-x" style="max-height:46vh;overflow-y:auto"><table class="tbl"><thead><tr><th>${isA ? 'ชนิดยาง' : 'วัสดุ'}</th>${isA ? '<th class="r">Bulk</th><th class="r">บรรจุภัณฑ์</th>' : provs.map((a) => `<th class="r">${esc(a)}</th>`).join('')}</tr></thead>
-      <tbody>${names.map((n) => `<tr><td><b>${esc(n)}</b></td>${isA ? inp(n, '-', 'price', 110) + inp(n, '-', 'price2', 110) : provs.map((a) => inp(n, a, 'price', 90)).join('')}</tr>`).join('')}</tbody></table></div>
+      <tbody id="md-rows">${names.map(row).join('')}</tbody></table></div>
+    <div class="row wrap" style="gap:8px"><input class="inp" id="md-newitem" style="flex:1 1 220px" placeholder="${isA ? 'ชนิดยางที่ไม่มีในรายการ' : 'วัสดุที่ไม่มีในรายการ'}"><button class="btn sm" id="md-additem">${icon('plus', 14)}เพิ่มแถว</button></div>
+    <span class="faint small">รายการประจำแก้ได้ที่ ตั้งค่า › รายการวัสดุ</span>
     <span class="err" id="md-err"></span>
     <div class="dlg-foot">${doc ? '<button class="btn danger" id="md-del" style="margin-right:auto">ลบชุดราคานี้</button>' : ''}<button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="md-save">บันทึก</button></div>`, { wide: true });
   const err = (m) => ($('#md-err').textContent = m);
   const done = (msg) => { closeModal(); toast(msg); view(main, kind, app); };
+  const sel = $('#md-srcsel'), box = $('#md-srcnew');
+  const showNew = () => { box.style.display = sel.value === '__new' ? '' : 'none'; if (sel.value === '__new') $('#md-src').focus(); };
+  if (!srcs.length) sel.value = '__new';
+  sel.onchange = showNew; showNew();
+  const source = () => (sel.value === '__new' ? $('#md-src').value : sel.value).trim();
+  $('#md-additem').onclick = () => {
+    const n = $('#md-newitem').value.trim();
+    if (!n) return err('พิมพ์ชื่อรายการก่อนกดเพิ่มแถว');
+    if ($$('#md-rows tr').some((tr) => tr.cells[0].textContent === n)) return err(`"${n}" มีอยู่แล้ว`);
+    $('#md-rows').insertAdjacentHTML('beforeend', row(n)); $('#md-newitem').value = ''; err('');
+    $$('#md-rows tr').pop().querySelector('input').focus();
+  };
   $('#md-save').onclick = async (e) => {
     const b = e.currentTarget, prices = {};
     $$('#modal-root [data-n]').forEach((el) => { const k = el.dataset.n + '|' + el.dataset.a; const o = prices[k] || (prices[k] = { item: el.dataset.n, area: el.dataset.a, price: '', price2: '' }); o[el.dataset.k] = el.value.replace(/,/g, '').trim(); });
     const bad = Object.values(prices).find((o) => [o.price, o.price2].some((x) => x !== '' && isNaN(Number(x))));
     if (bad) return err(`ราคา "${bad.item}" ต้องเป็นตัวเลข`);
-    const d = { kind, source: $('#md-src').value.trim(), period: $('#md-per').value, doc_no: $('#md-no').value.trim(), doc_date: isA ? $('#md-dd').value : $('#md-per').value, file_url: $('#md-url').value.trim(), note: $('#md-note').value.trim() };
+    if (!source()) return err(`กรุณาใส่ชื่อ${isA ? 'บริษัท' : 'แหล่ง'}`);
+    const d = { kind, source: source(), period: $('#md-per').value, doc_no: $('#md-no').value.trim(), doc_date: isA ? $('#md-dd').value : $('#md-per').value, file_url: $('#md-url').value.trim(), note: $('#md-note').value.trim() };
     if (doc) d.doc_id = doc.doc_id;
     busy(b);
     try {
