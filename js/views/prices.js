@@ -5,7 +5,8 @@ import { esc, $, $$, on, iso, today, thDate, truthy, by, uniq } from '../util.js
 import { modal, modalHead, closeModal, toast, busy, icon, empty } from '../ui.js';
 import { fuel } from './misc.js';
 
-const SUBS = [['fuel', 'น้ำมัน'], ['asphalt', 'ยางแอสฟัลต์'], ['quarry', 'วัสดุจากแหล่ง'], ['concrete', 'คอนกรีต / ปูน']];
+const SUBS = [['fuel', 'น้ำมัน'], ['asphalt', 'ยางแอสฟัลต์'], ['quarry', 'วัสดุจากแหล่ง'], ['concrete', 'คอนกรีต / ปูนซีเมนต์']];
+const srcLabel = (s) => (s === 'พาณิชย์' ? 'พาณิชย์ (กรุงเทพฯ)' : s);
 const AUTO = ['พาณิชย์', 'พาณิชย์จังหวัด'];   // GitHub Action ดึงให้ — แก้ในเว็บไม่ได้
 const ui = S.ui.prices || (S.ui.prices = { sub: 'fuel', month: '', date: '', cmonth: '' });
 
@@ -44,14 +45,14 @@ function asphalt(main, app, head) {
   const names = uniq(items('asphalt').map((i) => i.name).concat(cols.flatMap((c) => Object.keys(c.p)))).filter((n) => cols.some((c) => c.p[n]));
   const edit = can('edit_price');
   main.innerHTML = `${head}
-  <div class="page-head"><div class="t"><h1>ราคายางแอสฟัลต์ • ${thMonth(cur)}</h1><span class="muted small">Bulk = บาท/ตัน • ไม่รวม VAT • พาณิชย์ = ราคาส่วนกลาง ดึงอัตโนมัติ • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
+  <div class="page-head"><div class="t"><h1>ราคายางแอสฟัลต์ • ${thMonth(cur)}</h1><span class="muted small">Bulk = บาท/ตัน • ไม่รวม VAT • พาณิชย์ (กรุงเทพฯ) ดึงอัตโนมัติ • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
     <label class="f" style="flex:0 0 170px">เดือน<input class="inp" type="month" id="pa-m" value="${esc(cur)}"></label>
     ${edit ? `<button class="btn pri" id="pa-add">${icon('plus', 16)}กรอกราคาจากใบสืบ</button>` : ''}</div>
   ${names.length ? `<section class="card flush scroll-x"><table class="tbl"><thead>
-    <tr><th style="padding-left:18px">ชนิดยาง</th>${cols.map((c) => `<th class="r" colspan="${c.two ? 2 : 1}"><b>${esc(c.s)}</b>${fileLink(c.d)}${edit && !AUTO.includes(c.s) ? ` <button class="chip" style="height:26px" data-ed="${esc(c.d.doc_id)}">แก้ไข</button>` : ''}<br><span class="faint">${c.d.period !== cur ? 'ใช้ราคา ' : ''}${thMonth(c.d.period)}${c.d.doc_no ? ' • ' + esc(c.d.doc_no) : ''}</span></th>`).join('')}</tr>
+    <tr><th style="padding-left:18px">ชนิดยาง</th>${cols.map((c) => `<th class="r" colspan="${c.two ? 2 : 1}"><b>${esc(srcLabel(c.s))}</b>${fileLink(c.d)}${edit && !AUTO.includes(c.s) ? ` <button class="chip" style="height:26px" data-ed="${esc(c.d.doc_id)}">แก้ไข</button>` : ''}<br><span class="faint">${c.d.period !== cur ? 'ใช้ราคา ' : ''}${thMonth(c.d.period)}${c.d.doc_no ? ' • ' + esc(c.d.doc_no) : ''}</span></th>`).join('')}</tr>
     <tr><th></th>${cols.map((c) => (c.two ? '<th class="r faint">Bulk</th><th class="r faint">บรรจุภัณฑ์</th>' : '<th class="r faint">Bulk</th>')).join('')}</tr></thead>
     <tbody>${names.map((n) => { const low = lowest(cols.map((c) => c.p[n] && c.p[n].price)); return `<tr><td style="padding-left:18px"><b>${esc(n)}</b></td>${cols.map((c) => { const r = c.p[n] || {}; return cell(r.price, low) + (c.two ? `<td class="r num">${fmt(r.price2)}</td>` : ''); }).join('')}</tr>`; }).join('')}</tbody></table></section>
-    ${cols.some((c) => c.d.note) ? `<p class="faint small" style="margin:0">${cols.filter((c) => c.d.note).map((c) => esc(c.s + ': ' + c.d.note)).join(' • ')}</p>` : ''}`
+    ${cols.some((c) => c.d.note) ? `<p class="faint small" style="margin:0">${cols.filter((c) => c.d.note).map((c) => esc(srcLabel(c.s) + ': ' + c.d.note)).join(' • ')}</p>` : ''}`
     : empty('ยังไม่มีราคาเดือนนี้ — ราคาพาณิชย์ดึงอัตโนมัติทุกเช้า • ใบสืบ Tipco/Zola กด "กรอกราคาจากใบสืบ"')}`;
   $('#pa-m').onchange = (e) => { if (e.target.value) { ui.month = e.target.value; view(main, '', app); } };
   if ($('#pa-add')) $('#pa-add').onclick = () => docForm('asphalt', null, cur, main, app);
@@ -85,14 +86,13 @@ function quarry(main, app, head) {
   on(main, '[data-ed]', 'click', (e, b) => docForm('quarry', S.db.MatDocs.find((d) => d.doc_id === b.dataset.ed), at, main, app));
 }
 
-/* ---------- คอนกรีตผสมเสร็จ / ปูนซีเมนต์: พาณิชย์จังหวัด (อัตโนมัติ) ---------- */
+/* ---------- คอนกรีตผสมเสร็จ / ปูนซีเมนต์: พาณิชย์จังหวัด (อัตโนมัติ) • แต่ละจังหวัดใช้เดือนล่าสุดที่ประกาศ ---------- */
 function concrete(main, app, head) {
   const all = S.db.MatDocs.filter((d) => d.kind === 'concrete' || d.kind === 'cement');
   const months = uniq(all.map((d) => d.period)).sort();
   const cur = ui.cmonth || months[months.length - 1] || iso(today()).slice(0, 7), provs = provinces();
   const section = (kind, title, short) => {
-    const ds = all.filter((d) => d.kind === kind && d.period <= cur && monthsBack(d.period, cur) <= 3);
-    // แต่ละจังหวัดเผยแพร่ไม่พร้อมกัน → ใช้เดือนล่าสุดที่จังหวัดนั้นออกแล้ว
+    const ds = all.filter((d) => d.kind === kind && d.period <= cur);
     const per = {};
     provs.forEach((a) => {
       const d = ds.filter((x) => pricesOf(x.doc_id).some((r) => r.area === a)).sort(by('period')).pop();
@@ -107,7 +107,7 @@ function concrete(main, app, head) {
   };
   const body = section('concrete', 'คอนกรีตผสมเสร็จ', shortConcrete) + section('cement', 'ปูนซีเมนต์', (n) => n);
   main.innerHTML = `${head}
-  <div class="page-head"><div class="t"><h1>คอนกรีต / ปูน • ${thMonth(cur)}</h1><span class="muted small">พาณิชย์จังหวัด ดึงอัตโนมัติ • ไม่รวม VAT • จังหวัดที่ยังไม่ออกเดือนนี้ใช้เดือนล่าสุด (แสดงใต้ชื่อจังหวัด) • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
+  <div class="page-head"><div class="t"><h1>คอนกรีต / ปูนซีเมนต์ • ${thMonth(cur)}</h1><span class="muted small">พาณิชย์จังหวัด ดึงอัตโนมัติ • ไม่รวม VAT • แต่ละจังหวัดใช้เดือนล่าสุดที่ประกาศ (ถ้าไม่ใช่เดือนนี้ แสดงใต้ชื่อจังหวัด) • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
     <label class="f" style="flex:0 0 170px">เดือน<input class="inp" type="month" id="pc-m" value="${esc(cur)}"></label></div>
   ${body || empty('ยังไม่มีราคาเดือนนี้ — ระบบดึงจากพาณิชย์จังหวัดให้อัตโนมัติทุกเช้า')}`;
   $('#pc-m').onchange = (e) => { if (e.target.value) { ui.cmonth = e.target.value; view(main, '', app); } };

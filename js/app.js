@@ -111,7 +111,7 @@ function menu() {
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },
     { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', cols: [['ปฏิทิน', 'big', [['ประชุม', 'meetings'], ['วันลา', 'leaves']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new']]]] },
     { k: 'files', label: 'คลังเอกสาร', href: 'files', badge: f, cols: [['คลังเอกสาร', 'big', [['รอจัดหมวด', 'files'], ['เอกสารทั้งหมด', 'files/all']]]] },
-    { k: 'prices', label: 'ราคาวัสดุ', href: 'prices', cols: [['ราคาวัสดุ', 'big', [['น้ำมัน', 'prices/fuel'], ['ยางแอสฟัลต์', 'prices/asphalt'], ['วัสดุจากแหล่ง', 'prices/quarry'], ['คอนกรีต / ปูน', 'prices/concrete']]]] },
+    { k: 'prices', label: 'ราคาวัสดุ', href: 'prices', cols: [['ราคาวัสดุ', 'big', [['น้ำมัน', 'prices/fuel'], ['ยางแอสฟัลต์', 'prices/asphalt'], ['วัสดุจากแหล่ง', 'prices/quarry'], ['คอนกรีต / ปูนซีเมนต์', 'prices/concrete']]]] },
     { k: 'people', label: 'บุคลากร', href: 'people', badge: pu, cols: [['บุคลากร', 'big', [['โครงสร้างส่วน', 'people'], ['โปรไฟล์ของฉัน', 'profile']]]] }
   ];
   if (isAdmin()) m.push({ k: 'settings', label: 'ตั้งค่า', href: 'settings', cols: [] });
