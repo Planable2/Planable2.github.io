@@ -120,7 +120,7 @@ function drill(unit, yearPlans) {
 
 async function exportYear(rows) {
   try { await loadXLSX(); } catch (e) { return toast(e.message, 'err'); }
-  const data = rows.map((p) => ({ ปีงบ: p.fiscal_year, หน่วยงาน: p.unit, สำนัก: p.office, รหัสงาน: p.work_code, ชื่องาน: p.work_name, สายทาง: p.segs.map((s) => s.road).join(', '), 'งบที่ได้รับ': p.budget, สถานะ: p.st.name, 'ส่งกลับแก้ (รอบ)': p.rounds, เลยกำหนด: p.late ? 'ใช่' : '' }));
+  const data = rows.map((p) => ({ ปีงบ: p.fiscal_year, หน่วยงาน: p.unit, สำนัก: p.office, 'ID CODE': p.id_code || '', รหัสงาน: p.work_code || '', ชื่องาน: p.work_name, สายทาง: p.segs.map((s) => s.road).join(', '), 'งบที่ได้รับ': p.budget, สถานะ: p.st.name, 'ส่งกลับแก้ (รอบ)': p.rounds, เลยกำหนด: p.late ? 'ใช่' : '' }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'สถานะแผน');
   XLSX.writeFile(wb, `สถานะแผน_ปีงบ${rows[0] ? rows[0].fiscal_year : ''}.xlsx`);
 }

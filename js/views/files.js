@@ -30,7 +30,7 @@ export function view(main, arg, app) {
 function linkLabel(f) {
   if (!f.link_type || !f.link_id) return '';
   if (f.link_type === 'meeting') { const m = S.db.Meetings.find((x) => x.meeting_id === f.link_id); return 'ประชุม: ' + (m ? m.title : f.link_id); }
-  if (f.link_type === 'plan') { const p = plans().find((x) => x.plan_id === f.link_id); return 'แผน: ' + (p ? p.unit + ' • ' + p.work_code + ' ' + p.work_name : f.link_id); }
+  if (f.link_type === 'plan') { const p = plans().find((x) => x.plan_id === f.link_id); return 'แผน: ' + (p ? p.unit + ' • ' + [p.id_code, p.work_code].filter(Boolean).join('/') + ' ' + p.work_name : f.link_id); }
   if (f.link_type === 'order') { const o = S.db.Orders.find((x) => x.order_id === f.link_id); return 'งานสั่งการ: ' + (o ? o.doc_no : f.link_id); }
   return '';
 }
@@ -51,7 +51,7 @@ function classify(f, app) {
   const autoLink = (cat) => { const k = kinds().find((x) => x.name === cat) || {}; return { 'ประชุม': 'meeting', 'แผนงาน': 'plan', 'งานสั่งการ': 'order' }[k.link_to] || ''; };
   if (!st.link_type) st.link_type = autoLink(st.category);
   const targets = () => st.link_type === 'meeting' ? S.db.Meetings.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map((m) => [m.meeting_id, m.date + ' • ' + m.title])
-    : st.link_type === 'plan' ? plans().filter((p) => p.fiscal_year >= Math.max(...plans().map((x) => x.fiscal_year)) - 1).map((p) => [p.plan_id, p.fiscal_year + ' • ' + p.unit + ' • ' + p.work_code + ' ' + p.work_name])
+    : st.link_type === 'plan' ? plans().filter((p) => p.fiscal_year >= Math.max(...plans().map((x) => x.fiscal_year)) - 1).map((p) => [p.plan_id, p.fiscal_year + ' • ' + p.unit + ' • ' + [p.id_code, p.work_code].filter(Boolean).join('/') + ' ' + p.work_name])
       : st.link_type === 'order' ? S.db.Orders.map((o) => [o.order_id, o.doc_no + ' ' + o.title]) : [];
   const draw = (dlg) => {
     dlg.innerHTML = `${modalHead('จัดหมวดไฟล์', f.name)}

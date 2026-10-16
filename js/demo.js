@@ -180,7 +180,10 @@ const session = (u) => { const t = 'demo-' + Math.random().toString(36).slice(2)
 function savePlanCore(u, plan, segments) {
   const D = db().db;
   if (!/^\d{4}$/.test(String(plan.fiscal_year))) throw new Error('ปีงบต้องเป็นตัวเลข 4 หลัก');
-  if (!/^\d{4,12}$/.test(String(plan.work_code || ''))) throw new Error('รหัสงาน / ID CODE ต้องเป็นตัวเลข 4–12 หลัก');
+  const idc = String(plan.id_code ?? '').trim(), wc = String(plan.work_code ?? '').trim();
+  if (!idc && !wc) throw new Error('กรุณาใส่ ID CODE หรือรหัสงาน');
+  if (idc && !/^\d{4,12}$/.test(idc)) throw new Error('ID CODE ต้องเป็นตัวเลข');
+  if (wc && !/^\d{4,12}$/.test(wc)) throw new Error('รหัสงานต้องเป็นตัวเลข');
   if (!String(plan.work_name || '').trim()) throw new Error('กรุณาใส่ชื่องาน');
   if (!(Number(plan.budget) > 0)) throw new Error('งบประมาณต้องมากกว่า 0');
   if (plan.budget_cut === '' || plan.budget_cut == null) plan.budget_cut = plan.budget;
@@ -193,7 +196,7 @@ function savePlanCore(u, plan, segments) {
     plan.created_by = u.user_id; plan.created_at = nowIso();
     plan.status = plan.status || ((db().cfg.cfg_Units.find((x) => x.name === plan.unit) || {}).kind === 'เขต' ? 's0' : 's1');
   }
-  plan.fiscal_year = Number(plan.fiscal_year); plan.budget = Number(plan.budget); plan.budget_cut = Number(plan.budget_cut); plan.work_code = String(plan.work_code);
+  plan.fiscal_year = Number(plan.fiscal_year); plan.budget = Number(plan.budget); plan.budget_cut = Number(plan.budget_cut); plan.work_code = wc; plan.id_code = idc;
   const saved = upsert(D.Plans, 'plan_id', plan);
   D.Segments = D.Segments.filter((s) => s.plan_id !== plan.plan_id);
   const segRows = segments.map((s, i) => ({ seg_id: plan.plan_id + '-S' + (i + 1), plan_id: plan.plan_id, seq: i + 1, road: s.road, km_from_m: Number(s.km_from_m), km_to_m: Number(s.km_to_m), side: s.side, control: s.control || '', section: s.section || '', parallel: s.parallel || '' }));
