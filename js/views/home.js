@@ -5,7 +5,7 @@ import { chart } from '../charts.js';
 import { modal, modalHead, avatarStack, icon, toast } from '../ui.js';
 
 const ui = { year: null, type: 'stack', measure: 'count', unit: 'all', office: 'all', cb: null };
-const cbDefault = () => ({ metric: 'cut', group: 'unit', split: 'year', type: 'col', years: Object.fromEntries(planYears().map((y) => [y, true])), unit: 'all', office: 'all', status: 'all' });
+const cbDefault = () => ({ metric: 'budget', group: 'unit', split: 'year', type: 'col', years: Object.fromEntries(planYears().map((y) => [y, true])), unit: 'all', office: 'all', status: 'all' });
 
 export function view(main, arg, app) {
   if (!ui.year || !planYears().includes(ui.year)) ui.year = defaultYear();
@@ -30,11 +30,11 @@ export function view(main, arg, app) {
   ${ui.year < fy ? `<div class="note grey">ปีงบ ${ui.year} ปิดแล้ว — ดูและส่งออกได้ แก้ไขได้เฉพาะผู้ดูแลระบบ</div>` : ''}
   ${!years.length ? `<div class="empty">ยังไม่มีแผนในทะเบียน — เริ่มจากหน้าทะเบียนแผน (ลงทะเบียน หรือ นำเข้าจาก Excel)</div>` : ''}
   <section class="kpis">
-    ${kpi('แผนทั้งหมด', set.length, mil(sum(set, (p) => p.budget_cut)) + ' ลบ. หลังปรับลด', '#FFFEFB', 'var(--ink)')}
-    ${kpi('ยังไม่ส่ง', grp('ยังไม่ส่ง').length, mil(sum(grp('ยังไม่ส่ง'), (p) => p.budget_cut)) + ' ลบ.', '#EFEBE2', '#57524A')}
+    ${kpi('แผนทั้งหมด', set.length, mil(sum(set, (p) => p.budget)) + ' ลบ.', '#FFFEFB', 'var(--ink)')}
+    ${kpi('ยังไม่ส่ง', grp('ยังไม่ส่ง').length, mil(sum(grp('ยังไม่ส่ง'), (p) => p.budget)) + ' ลบ.', '#EFEBE2', '#57524A')}
     ${kpi('ส่งแล้ว', set.filter((p) => p.sent).length, 'จาก ' + set.length + ' แผน', '#E9EFF5', '#3B5A78')}
-    ${kpi('ส่งกรมแล้ว', grp('ส่งกรมแล้ว').length + grp('กรมเห็นชอบ').length, mil(sum(grp('ส่งกรมแล้ว').concat(grp('กรมเห็นชอบ')), (p) => p.budget_cut)) + ' ลบ.', '#E5F0EC', '#2F6657')}
-    ${kpi('กรมเห็นชอบ', grp('กรมเห็นชอบ').length, mil(sum(grp('กรมเห็นชอบ'), (p) => p.budget_cut)) + ' ลบ.', '#E7EEDF', '#33502F')}
+    ${kpi('ส่งกรมแล้ว', grp('ส่งกรมแล้ว').length + grp('กรมเห็นชอบ').length, mil(sum(grp('ส่งกรมแล้ว').concat(grp('กรมเห็นชอบ')), (p) => p.budget)) + ' ลบ.', '#E5F0EC', '#2F6657')}
+    ${kpi('กรมเห็นชอบ', grp('กรมเห็นชอบ').length, mil(sum(grp('กรมเห็นชอบ'), (p) => p.budget)) + ' ลบ.', '#E7EEDF', '#33502F')}
   </section>
   <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start" id="h-main">
     <section class="card col" style="gap:12px">
@@ -58,14 +58,14 @@ export function view(main, arg, app) {
   const cats = keys.map((k) => {
     const l = set.filter((p) => (byUnit ? p.unit === k : p.office === k));
     if (!l.length) return null;
-    const vals = ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return money_ ? sum(x, (p) => p.budget_cut) / 1e6 : x.length; });
+    const vals = ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return money_ ? sum(x, (p) => p.budget) / 1e6 : x.length; });
     const sent = l.filter((p) => p.sent).length;
     return { key: k, label: k, values: ui.type === 'prog' ? [(sent / l.length) * 100] : vals, sub: sent + '/' + l.length + ' แผน',
-      tips: ui.type === 'prog' ? ['ส่งแล้ว ' + sent + ' จาก ' + l.length + ' แผน'] : ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return `${x.length} แผน • ${mil(sum(x, (p) => p.budget_cut))} ลบ.`; }) };
+      tips: ui.type === 'prog' ? ['ส่งแล้ว ' + sent + ' จาก ' + l.length + ' แผน'] : ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return `${x.length} แผน • ${mil(sum(x, (p) => p.budget))} ลบ.`; }) };
   }).filter(Boolean);
   const type = ui.type === 'stack' ? 'hbar' : ui.type;
   if (ui.type === 'donut') {
-    const dcats = ST.map((s) => { const x = set.filter((p) => p.status === s.status_code); return { key: s.status_code, label: s.name, color: s.color, values: [money_ ? sum(x, (p) => p.budget_cut) / 1e6 : x.length] }; }).filter((c) => c.values[0] > 0);
+    const dcats = ST.map((s) => { const x = set.filter((p) => p.status === s.status_code); return { key: s.status_code, label: s.name, color: s.color, values: [money_ ? sum(x, (p) => p.budget) / 1e6 : x.length] }; }).filter((c) => c.values[0] > 0);
     $('#h-chart').innerHTML = chart({ cats: dcats, series: [{ label: '', color: '' }], type: 'donut', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), unit: money_ ? 'ลบ.' : 'แผน' });
   } else {
     $('#h-chart').innerHTML = chart({ cats, series: ui.type === 'prog' ? [{ label: '% ส่งแล้ว', color: '#46703F' }] : ST.map((s) => ({ label: s.name, color: s.color })), type, unit: ui.type === 'prog' ? '%' : money_ ? 'ลบ.' : 'แผน', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), onCat: byUnit });
@@ -113,14 +113,14 @@ function drill(unit, yearPlans) {
   const l = yearPlans.filter((p) => p.unit === unit), ST = statuses();
   const cats = offices().map((o) => { const x = l.filter((p) => p.office === o.short); return x.length ? { key: o.short, label: o.short, values: ST.map((s) => x.filter((p) => p.status === s.status_code).length) } : null; }).filter(Boolean);
   const sent = l.filter((p) => p.sent).length;
-  modal(`${modalHead(unit + ' • ' + l.length + ' แผน', 'งบหลังปรับลด ' + mil(l.reduce((a, p) => a + p.budget_cut, 0)) + ' ลบ. • ส่งแล้ว ' + sent + '/' + l.length)}
+  modal(`${modalHead(unit + ' • ' + l.length + ' แผน', 'งบประมาณ ' + mil(l.reduce((a, p) => a + p.budget, 0)) + ' ลบ. • ส่งแล้ว ' + sent + '/' + l.length)}
     ${chart({ cats, series: ST.map((s) => ({ label: s.name, color: s.color })), type: 'hbar', unit: 'แผน' })}
     <div class="dlg-foot"><button class="btn" data-dismiss>ปิด</button>${isGuest() ? '' : `<a class="btn pri" href="#/plans" data-dismiss onclick="sessionStorage.setItem('plan-unit',${esc(JSON.stringify(unit))})">เปิดทะเบียนแผนของ ${esc(unit)}</a>`}</div>`, { wide: true });
 }
 
 async function exportYear(rows) {
   try { await loadXLSX(); } catch (e) { return toast(e.message, 'err'); }
-  const data = rows.map((p) => ({ ปีงบ: p.fiscal_year, หน่วยงาน: p.unit, สำนัก: p.office, รหัสงาน: p.work_code, ชื่องาน: p.work_name, สายทาง: p.segs.map((s) => s.road).join(', '), 'งบที่ได้รับ': p.budget, 'หลังปรับลด': p.budget_cut, สถานะ: p.st.name, 'ส่งกลับแก้ (รอบ)': p.rounds, เลยกำหนด: p.late ? 'ใช่' : '' }));
+  const data = rows.map((p) => ({ ปีงบ: p.fiscal_year, หน่วยงาน: p.unit, สำนัก: p.office, รหัสงาน: p.work_code, ชื่องาน: p.work_name, สายทาง: p.segs.map((s) => s.road).join(', '), 'งบที่ได้รับ': p.budget, สถานะ: p.st.name, 'ส่งกลับแก้ (รอบ)': p.rounds, เลยกำหนด: p.late ? 'ใช่' : '' }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'สถานะแผน');
   XLSX.writeFile(wb, `สถานะแผน_ปีงบ${rows[0] ? rows[0].fiscal_year : ''}.xlsx`);
 }
@@ -128,7 +128,7 @@ async function exportYear(rows) {
 /* ---------- กราฟสร้างเอง ---------- */
 function builder(box, all, app) {
   const cb = ui.cb, ST = statuses(), years = planYears().slice().sort();
-  const METRICS = [['count', 'จำนวนแผน', 'แผน', 1], ['budget', 'งบประมาณที่ได้รับ', 'ลบ.', 1], ['cut', 'วงเงินหลังปรับลด', 'ลบ.', 1], ['reduced', 'ยอดที่ถูกปรับลด', 'ลบ.', 1], ['avg', 'วงเงินเฉลี่ยต่อแผน', 'ลบ.', 0], ['segs', 'จำนวนช่วงสายทาง', 'ช่วง', 1], ['length', 'ระยะทางรวม', 'กม.', 1], ['rounds', 'รอบส่งกลับแก้ไข', 'รอบ', 1], ['pctSent', '% ส่งแล้ว', '%', 0], ['pctOk', '% กรมเห็นชอบ', '%', 0]];
+  const METRICS = [['count', 'จำนวนแผน', 'แผน', 1], ['budget', 'งบประมาณที่ได้รับ', 'ลบ.', 1], ['avg', 'งบประมาณเฉลี่ยต่อแผน', 'ลบ.', 0], ['segs', 'จำนวนช่วงสายทาง', 'ช่วง', 1], ['length', 'ระยะทางรวม', 'กม.', 1], ['rounds', 'รอบส่งกลับแก้ไข', 'รอบ', 1], ['pctSent', '% ส่งแล้ว', '%', 0], ['pctOk', '% กรมเห็นชอบ', '%', 0]];
   const DIMS = [['year', 'ปีงบประมาณ'], ['unit', 'หน่วยงาน'], ['office', 'สำนัก'], ['status', 'สถานะ']];
   const M = METRICS.find((m) => m[0] === cb.metric) || METRICS[0];
   const pool = all.filter((p) => cb.years[p.fiscal_year] && (cb.unit === 'all' || p.unit === cb.unit) && (cb.office === 'all' || p.office === cb.office) && (cb.status === 'all' || p.status === cb.status));
@@ -137,8 +137,8 @@ function builder(box, all, app) {
   const meas = (l) => {
     if (!l.length) return 0;
     switch (cb.metric) {
-      case 'count': return l.length; case 'budget': return l.reduce((a, p) => a + p.budget, 0) / 1e6; case 'cut': return l.reduce((a, p) => a + p.budget_cut, 0) / 1e6;
-      case 'reduced': return l.reduce((a, p) => a + (p.budget - p.budget_cut), 0) / 1e6; case 'avg': return l.reduce((a, p) => a + p.budget_cut, 0) / 1e6 / l.length;
+      case 'count': return l.length; case 'budget': return l.reduce((a, p) => a + p.budget, 0) / 1e6; 
+      case 'avg': return l.reduce((a, p) => a + p.budget, 0) / 1e6 / l.length;
       case 'segs': return l.reduce((a, p) => a + p.segs.length, 0); case 'length': return l.reduce((a, p) => a + p.length_km, 0); case 'rounds': return l.reduce((a, p) => a + p.rounds, 0);
       case 'pctSent': return (l.filter((p) => p.sent).length / l.length) * 100; case 'pctOk': return (l.filter((p) => p.st.dash_group === 'กรมเห็นชอบ').length / l.length) * 100;
     }

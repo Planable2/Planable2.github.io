@@ -180,14 +180,14 @@ const session = (u) => { const t = 'demo-' + Math.random().toString(36).slice(2)
 function savePlanCore(u, plan, segments) {
   const D = db().db;
   if (!/^\d{4}$/.test(String(plan.fiscal_year))) throw new Error('ปีงบต้องเป็นตัวเลข 4 หลัก');
-  if (!/^\d{5}$/.test(String(plan.work_code || ''))) throw new Error('รหัสงานต้องเป็นตัวเลข 5 หลัก');
+  if (!/^\d{4,12}$/.test(String(plan.work_code || ''))) throw new Error('รหัสงาน / ID CODE ต้องเป็นตัวเลข 4–12 หลัก');
   if (!String(plan.work_name || '').trim()) throw new Error('กรุณาใส่ชื่องาน');
   if (!(Number(plan.budget) > 0)) throw new Error('งบประมาณต้องมากกว่า 0');
   if (plan.budget_cut === '' || plan.budget_cut == null) plan.budget_cut = plan.budget;
   if (Number(plan.budget_cut) > Number(plan.budget)) throw new Error('วงเงินหลังปรับลดต้องไม่เกินงบที่ได้รับ');
   if (!db().cfg.cfg_Units.some((x) => x.name === plan.unit)) throw new Error('ไม่รู้จักหน่วยงาน "' + plan.unit + '"');
   if (!db().cfg.cfg_Offices.some((x) => x.short === plan.office)) throw new Error('ไม่รู้จักสำนัก "' + plan.office + '"');
-  segments.forEach((s, i) => { if (!(Number(s.km_to_m) > Number(s.km_from_m))) throw new Error('ช่วงที่ ' + (i + 1) + ': กม.สิ้นสุด ต้องมากกว่า กม.เริ่ม'); });
+  segments.forEach((s, i) => { if (!(Number(s.km_to_m) >= Number(s.km_from_m))) throw new Error('ช่วงที่ ' + (i + 1) + ': กม.สิ้นสุด ต้องไม่น้อยกว่า กม.เริ่ม'); });
   if (!plan.plan_id) {
     plan.plan_id = nextId(D.Plans, 'plan_id', 'PL-' + plan.fiscal_year + '-');
     plan.created_by = u.user_id; plan.created_at = nowIso();
@@ -196,7 +196,7 @@ function savePlanCore(u, plan, segments) {
   plan.fiscal_year = Number(plan.fiscal_year); plan.budget = Number(plan.budget); plan.budget_cut = Number(plan.budget_cut); plan.work_code = String(plan.work_code);
   const saved = upsert(D.Plans, 'plan_id', plan);
   D.Segments = D.Segments.filter((s) => s.plan_id !== plan.plan_id);
-  const segRows = segments.map((s, i) => ({ seg_id: plan.plan_id + '-S' + (i + 1), plan_id: plan.plan_id, seq: i + 1, road: s.road, km_from_m: Number(s.km_from_m), km_to_m: Number(s.km_to_m), side: s.side }));
+  const segRows = segments.map((s, i) => ({ seg_id: plan.plan_id + '-S' + (i + 1), plan_id: plan.plan_id, seq: i + 1, road: s.road, km_from_m: Number(s.km_from_m), km_to_m: Number(s.km_to_m), side: s.side, control: s.control || '', section: s.section || '', parallel: s.parallel || '' }));
   D.Segments.push(...segRows);
   return { plan: saved, segments: segRows };
 }
@@ -233,6 +233,15 @@ const ACTIONS = {
   logout: (p) => { delete db().sessions[p.token]; persist(); return { ok: true }; },
   savePlan: (p, u) => { need(u, 'edit_plan', 'บทบาทของคุณลงทะเบียน/แก้ไขแผนไม่ได้'); const r = savePlanCore(u, p.plan, p.segments || []); persist(); return r; },
   bulkPlans: (p, u) => { need(u, 'edit_plan'); const saved = (p.items || []).map((it) => savePlanCore(u, it.plan, it.segments || [])); persist(); return { saved }; },
+  deletePlan: (p, u) => {
+    need(u, 'edit_plan', 'บทบาทของคุณลบแผนไม่ได้');
+    const D = db().db, id = String(p.plan_id || '');
+    if (!D.Plans.some((x) => x.plan_id === id)) throw new Error('ไม่พบแผน');
+    D.Plans = D.Plans.filter((x) => x.plan_id !== id); D.Segments = D.Segments.filter((x) => x.plan_id !== id); D.StatusLog = D.StatusLog.filter((x) => x.plan_id !== id);
+    D.Files.forEach((f) => { if (f.link_type === 'plan' && f.link_id === id) { f.link_type = ''; f.link_id = ''; } });
+    D.Meetings.forEach((m) => { if (m.plan_id === id) m.plan_id = ''; });
+    persist(); return { plan_id: id };
+  },
   changeStatus: (p, u) => {
     need(u, 'update_status', 'บทบาทของคุณอัปเดตสถานะแผนไม่ได้');
     const D = db().db, plan = D.Plans.find((x) => x.plan_id === p.plan_id);

@@ -49,14 +49,30 @@ export function plans() {
     const isKhet = u.kind === 'เขต';
     const sent = isKhet ? ['ส่งกรมแล้ว', 'กรมเห็นชอบ'].includes(st.dash_group) : !unsent;
     const sendbacks = logs.filter((l) => reasonCodes.includes(l.to_status));
+    const { khwaeng, khet } = stages(st, sendbacks.length);
     return Object.assign({}, p, {
-      fiscal_year: Number(p.fiscal_year), budget: Number(p.budget) || 0, budget_cut: p.budget_cut === '' || p.budget_cut == null ? Number(p.budget) || 0 : Number(p.budget_cut),
-      reviewer: u.reviewer_id || '', isKhet, st, segs, logs, sent, round, due,
+      fiscal_year: Number(p.fiscal_year), budget: Number(p.budget) || 0,
+      reviewer: u.reviewer_id || '', isKhet, st, segs, logs, sent, round, due, khwaeng, khet,
       late: !!(due && unsent && due < t), rounds: sendbacks.length, reasons: sendbacks.map((l, i) => `รอบ ${l.round_no || i + 1}: ${l.reason || '—'}`),
       length_km: segs.reduce((a, s) => a + Math.max(0, (Number(s.km_to_m) - Number(s.km_from_m)) / 1000), 0)
     });
   });
   return cache;
+}
+
+/** สถานะแยก 2 ฝั่งจากสถานะเดียวกัน + จำนวนรอบส่งกลับ:
+ *  แขวง = กำลังดำเนินการ (ยังไม่ส่ง/ถูกส่งกลับแก้) | ส่งแล้ว
+ *  เขต  = ระหว่างตรวจ → ส่งแก้ไข → ตรวจรอบที่ 2 → แก้ไขรอบที่ 2 … → ส่งกรมแล้ว/กรมเห็นชอบ (สถานะอื่นใช้ชื่อตามตั้งค่า) */
+export const KHWAENG_STAGES = ['กำลังดำเนินการ', 'ส่งแล้ว'];
+function stages(st, n) {
+  const fix = truthy(st.need_reason), unsent = st.dash_group === 'ยังไม่ส่ง';
+  const khwaeng = unsent || fix ? { label: fix ? 'กำลังแก้ไข' : 'กำลังดำเนินการ', key: 'กำลังดำเนินการ', color: fix ? '#D3A04A' : '#C9C1AE' } : { label: 'ส่งแล้ว', key: 'ส่งแล้ว', color: '#6585A6' };
+  let khet;
+  if (unsent) khet = { label: 'รอแขวงส่ง', key: 'รอแขวงส่ง', color: '#C9C1AE' };
+  else if (fix) khet = { label: n > 1 ? `แก้ไขรอบที่ ${n}` : 'ส่งแก้ไข', key: 'ส่งแก้ไข', color: st.color };
+  else if (st.dash_group === 'แขวงส่งแล้ว') khet = { label: n ? `ตรวจรอบที่ ${n + 1}` : 'ระหว่างตรวจ', key: 'ระหว่างตรวจ', color: st.color };
+  else khet = { label: st.name, key: st.name, color: st.color };
+  return { khwaeng, khet };
 }
 
 export const planYears = () => Array.from(new Set(plans().map((p) => p.fiscal_year))).sort((a, b) => b - a);

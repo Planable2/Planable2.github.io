@@ -15,11 +15,13 @@ import * as People from './views/people.js';
 import * as Settings from './views/settings.js';
 import * as Misc from './views/misc.js';
 import * as Prices from './views/prices.js';
+import * as Check from './views/check.js';
 
 const ROUTES = {
   home: { mod: Home, title: 'หน้าแรก', nav: 'home', guest: true },
   plans: { mod: Plans, title: 'ทะเบียนแผน', nav: 'plans' },
   plan: { mod: Plans, fn: 'detail', title: 'รายละเอียดแผน', nav: 'plans' },
+  check: { mod: Check, title: 'ตรวจแผน', nav: 'check' },
   meetings: { mod: Meetings, title: 'ปฏิทินประชุม', nav: 'meetings' },
   leaves: { mod: Leaves, title: 'ปฏิทินวันลา', nav: 'meetings' },
   orders: { mod: Orders, title: 'งานสั่งการ', nav: 'orders' },
@@ -114,6 +116,7 @@ function menu() {
   const m = [
     { k: 'home', label: 'หน้าแรก', href: 'home', cols: [['สำรวจ', 'big', [['ภาพรวมแผนทั้งเขต', 'home'], ['กราฟเปรียบเทียบ', 'home']]], ['ทางลัด', 'sm', [['งานสั่งการของฉัน', 'orders'], ['ประชุมที่กำลังจะมาถึง', 'meetings']]]] },
     { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(can('edit_plan') ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
+    { k: 'check', label: 'ตรวจแผน', href: 'check', cols: [['ตรวจแผน', 'big', [['คำนวณ Factor F', 'check/factor'], ['ค่าดำเนินการและค่าเสื่อมราคา', 'check/op']]]] },
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },
     { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', badge: calBadge(), cols: [['ปฏิทิน', 'big', [['ประชุม', 'meetings'], ['วันลา', 'leaves']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new']]]] },
     { k: 'files', label: 'คลังเอกสาร', href: 'files', badge: f, cols: [['คลังเอกสาร', 'big', [['รอจัดหมวด', 'files'], ['เอกสารทั้งหมด', 'files/all']]]] },
@@ -135,7 +138,7 @@ function appBadge(n) {
 }
 
 const TOP_KEYS = ['home', 'plans', 'meetings', 'orders', 'more'];
-const MORE_KEYS = ['files', 'prices', 'people', 'profile', 'settings', 'more'];
+const MORE_KEYS = ['check', 'files', 'prices', 'people', 'profile', 'settings', 'more'];
 const logo = (s) => `<img class="logo" src="icons/logo-tile.png" alt="" width="${s}" height="${s}">`;
 let shellKey = '', fly = { close() {} };
 
