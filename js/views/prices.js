@@ -14,6 +14,8 @@ const tabs = (cur) => `<div class="seg-ctl" role="tablist" style="align-self:fle
 const fmt = (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const thMonth = (p) => thDate(p + '-01').replace(/^\d+ /, '');
 const items = (kind) => cfg('MatItems').filter((i) => i.kind === kind && (truthy(i.active) || i.active === '')).sort(by('sort'));
+/** ยางที่ขายเป็นตัน (หน่วย บาท/ตัน ใน ตั้งค่า › รายการวัสดุ) แสดงเฉพาะราคา Bulk — ราคาบรรจุภัณฑ์ใช้กับรายการอื่น เช่น REJUVENATOR / JOINT SEALER */
+const bulkOnly = () => new Set(items('asphalt').filter((i) => /ตัน/.test(i.unit || '')).map((i) => i.name));
 const docsOf = (kind) => S.db.MatDocs.filter((d) => d.kind === kind);
 const pricesOf = (id) => S.db.MatPrices.filter((p) => p.doc_id === id);
 const provinces = () => uniq(cfg('Units').filter((u) => (truthy(u.active) || u.active === '') && u.province).sort(by('sort')).map((u) => u.province));
@@ -41,7 +43,8 @@ function asphalt(main, app, head) {
   const srcs = uniq(['พาณิชย์'].concat(all.map((d) => d.source).sort()));
   // แต่ละแหล่ง: ราคาเดือนที่เลือก • ถ้ายังไม่ออกใช้เดือนล่าสุดก่อนหน้า (ย้อนไม่เกิน 3 เดือน)
   const cols = srcs.map((s) => ({ s, d: all.filter((d) => d.source === s && d.period <= cur && monthsBack(d.period, cur) <= 3).sort(by('period')).pop() })).filter((c) => c.d);
-  cols.forEach((c) => { c.p = {}; pricesOf(c.d.doc_id).forEach((r) => (c.p[r.item] = r)); c.two = Object.values(c.p).some((r) => num(r.price2)); });
+  const bo = bulkOnly();
+  cols.forEach((c) => { c.p = {}; pricesOf(c.d.doc_id).forEach((r) => (c.p[r.item] = r)); c.two = Object.values(c.p).some((r) => num(r.price2) && !bo.has(r.item)); });
   const names = uniq(items('asphalt').map((i) => i.name).concat(cols.flatMap((c) => Object.keys(c.p)))).filter((n) => cols.some((c) => c.p[n]));
   const edit = can('edit_price');
   main.innerHTML = `${head}
@@ -51,7 +54,7 @@ function asphalt(main, app, head) {
   ${names.length ? `<section class="card flush scroll-x"><table class="tbl"><thead>
     <tr><th style="padding-left:18px">ชนิดยาง</th>${cols.map((c) => `<th class="r" colspan="${c.two ? 2 : 1}"><b>${esc(srcLabel(c.s))}</b>${fileLink(c.d)}${edit && !AUTO.includes(c.s) ? ` <button class="chip" style="height:26px" data-ed="${esc(c.d.doc_id)}">แก้ไข</button>` : ''}<br><span class="faint">${c.d.period !== cur ? 'ใช้ราคา ' : ''}${thMonth(c.d.period)}${c.d.doc_no ? ' • ' + esc(c.d.doc_no) : ''}</span></th>`).join('')}</tr>
     <tr><th></th>${cols.map((c) => (c.two ? '<th class="r faint">Bulk</th><th class="r faint">บรรจุภัณฑ์</th>' : '<th class="r faint">Bulk</th>')).join('')}</tr></thead>
-    <tbody>${names.map((n) => { const low = lowest(cols.map((c) => c.p[n] && c.p[n].price)); return `<tr><td style="padding-left:18px;white-space:nowrap"><b>${esc(n)}</b></td>${cols.map((c) => { const r = c.p[n] || {}; return cell(r.price, low) + (c.two ? `<td class="r num">${fmt(r.price2)}</td>` : ''); }).join('')}</tr>`; }).join('')}</tbody></table></section>
+    <tbody>${names.map((n) => { const low = lowest(cols.map((c) => c.p[n] && c.p[n].price)); return `<tr><td style="padding-left:18px;white-space:nowrap"><b>${esc(n)}</b></td>${cols.map((c) => { const r = c.p[n] || {}; return cell(r.price, low) + (c.two ? `<td class="r num">${bo.has(n) ? '' : fmt(r.price2)}</td>` : ''); }).join('')}</tr>`; }).join('')}</tbody></table></section>
     ${cols.some((c) => c.d.note) ? `<p class="faint small" style="margin:0">${cols.filter((c) => c.d.note).map((c) => esc(srcLabel(c.s) + ': ' + c.d.note)).join(' • ')}</p>` : ''}`
     : empty('ยังไม่มีราคาเดือนนี้ — ราคาพาณิชย์ดึงอัตโนมัติทุกเช้า • ใบสืบ Tipco/Zola กด "กรอกราคาจากใบสืบ"')}`;
   $('#pa-m').onchange = (e) => { if (e.target.value) { ui.month = e.target.value; view(main, '', app); } };
@@ -122,7 +125,8 @@ function docForm(kind, doc, period, main, app) {
   const names = uniq(items(kind).map((i) => i.name).concat(old.map((r) => r.item)));
   const srcs = uniq((isA ? ['Tipco', 'Zola'] : ['สทล.2']).concat(docsOf(kind).map((d) => d.source))).filter((s) => !AUTO.includes(s));
   const inp = (n, a, k, w) => `<td><input class="inp num" style="height:36px;min-width:${w}px" data-n="${esc(n)}" data-a="${esc(a)}" data-k="${k}" value="${esc(v(n, a, k))}" inputmode="decimal"></td>`;
-  const row = (n) => `<tr><td><b>${esc(n)}</b></td>${isA ? inp(n, '-', 'price', 110) + inp(n, '-', 'price2', 110) : provs.map((a) => inp(n, a, 'price', 90)).join('')}</tr>`;
+  const bo = bulkOnly();
+  const row = (n) => `<tr><td><b>${esc(n)}</b></td>${isA ? inp(n, '-', 'price', 110) + (bo.has(n) ? '<td></td>' : inp(n, '-', 'price2', 110)) : provs.map((a) => inp(n, a, 'price', 90)).join('')}</tr>`;
   modal(`${modalHead(doc ? 'แก้ไขราคา ' + doc.source : isA ? 'กรอกราคายางจากใบสืบ' : 'ออกราคาวัสดุจากแหล่ง', isA ? 'ไม่รวม VAT • Bulk = บาท/ตัน • ช่องว่าง = ไม่มีราคา' : 'มีผลตั้งแต่วันที่ออกราคา จนกว่าจะออกราคาใหม่ • ช่องว่าง = ไม่มีราคา')}
     <div class="fgrid">
       <label class="f">${isA ? 'บริษัท / แหล่งราคา *' : 'แหล่งราคา *'}<select class="inp" id="md-srcsel">${srcs.map((s) => `<option ${s === f.source ? 'selected' : ''}>${esc(s)}</option>`).join('')}<option value="__new">+ เพิ่ม${isA ? 'บริษัท' : 'แหล่ง'}ใหม่…</option></select></label>

@@ -227,6 +227,7 @@ function planForm(plan, app) {
     <div class="fgrid">
       <label class="f">ID CODE<input class="inp num" data-k="id_code" value="${esc(f.id_code || '')}" inputmode="numeric" placeholder="70026016"></label>
       <label class="f">รหัสงาน<input class="inp num" data-k="work_code" value="${esc(f.work_code || '')}" inputmode="numeric" placeholder="22000"></label>
+    </div>
     <div class="fgrid">
       <label class="f">กิจกรรมตาม พ.ร.บ.<input class="inp" data-k="activity" value="${esc(f.activity || '')}" list="pf-acts" placeholder="เช่น งานบำรุงตามกำหนดเวลา"></label>
       <label class="f">พื้นที่ดำเนินการ (จังหวัด)<input class="inp" data-k="province" value="${esc(f.province || '')}" list="pf-provs"></label>
