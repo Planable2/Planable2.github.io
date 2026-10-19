@@ -35,6 +35,9 @@ button { cursor: pointer; }
 .tn-link { position: relative; height: 52px; padding: 0 11px; display: flex; align-items: center; gap: 5px; font-size: 13px; color: rgba(43, 42, 34, .78); transition: color .24s var(--ease); white-space: nowrap; }
 .tn-link:hover, .tn-link.on { color: #11110E; }
 .tn-link.on { font-weight: 600; }
+.tn-links { min-width: 0; }
+@media (max-width: 1120px) { .topnav .inner { padding: 0 12px; } .brand span { display: none; } .tn-link { padding: 0 7px; font-size: 12.5px; } .tn-link.on::after { left: 7px; right: 7px; } }
+@media (max-width: 980px) { .topnav .inner { gap: 2px; } .tn-link { padding: 0 4px; font-size: 12px; } .tn-link.on::after { left: 4px; right: 4px; } .topnav .tag { display: none; } }
 .tn-link.on::after { content: ''; position: absolute; left: 11px; right: 11px; bottom: 9px; height: 2px; border-radius: 1px; background: var(--green2); }
 .badge { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 9px; background: #C66B3D; color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 /* เมนูย่อย: กล่องเลื่อนความสูงตามแผงที่เปิด • แผงซ้อนกันแล้วจางสลับ (ไม่มีจังหวะว่างระหว่างแท็บ) */
@@ -259,3 +262,9 @@ details.card > summary { cursor: pointer; list-style: revert; }
 }
 /* หัวตารางทะเบียนแผน: ตัดบรรทัดได้ ไม่ทับคอลัมน์ข้างๆ */
 .ptbl th { white-space: normal; line-height: 1.3; vertical-align: bottom; overflow-wrap: anywhere; }
+
+/* ---------- ตรวจแผน: ค่าขนส่ง ---------- */
+.trcards { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.trv { font-family: var(--head); font-size: 26px; font-weight: 500; color: var(--green-ink); font-variant-numeric: tabular-nums; }
+.trtbl td, .trtbl th { padding: 4px 8px; } .trtbl td:nth-child(3n) { border-right: 1px solid var(--line); }
+.trtbl td.tron { background: var(--gold-soft) !important; color: var(--gold-ink); font-weight: 700; }

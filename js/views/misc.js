@@ -10,7 +10,7 @@ export function more(main, arg, app) {
   main.innerHTML = `
   <a class="card row" href="#/profile" style="background:var(--green);color:#FFFEFB">${avatar(u, 58)}<span class="col grow" style="gap:2px"><b style="font-family:var(--head);font-size:18px;font-weight:500">${esc(u.full_name)}</b><span class="small" style="color:#C7CDB8">${esc(u.position)} • ${esc(u.role)}${u.is_admin === true ? ' • แอดมิน' : ''}</span></span><span class="small" style="color:var(--gold)">โปรไฟล์ ›</span></a>
   <section class="card flush morelist">
-    <a href="#/check"><span class="ic">${icon('calc')}</span><span class="grow"><b>ตรวจแผน</b><br><span class="faint">คำนวณ Factor F • ค่าดำเนินการและค่าเสื่อมราคา</span></span>${icon('chev', 16)}</a>
+    <a href="#/check"><span class="ic">${icon('calc')}</span><span class="grow"><b>ตรวจแผน</b><br><span class="faint">คำนวณ Factor F • ค่าดำเนินการและค่าเสื่อมราคา • ค่าขนส่ง</span></span>${icon('chev', 16)}</a>
     <a href="#/files"><span class="ic">${icon('file')}</span><span class="grow"><b>คลังเอกสาร</b><br><span class="faint">ไฟล์จากกลุ่ม LINE${pf ? ' • รอจัดหมวด ' + pf : ''}</span></span>${pf ? `<span class="badge">${pf}</span>` : ''}${icon('chev', 16)}</a>
     <a href="#/prices"><span class="ic">${icon('fuel')}</span><span class="grow"><b>ราคาวัสดุ</b><br><span class="faint">น้ำมัน • ยางแอสฟัลต์ • วัสดุจากแหล่ง • คอนกรีต/ปูนซีเมนต์</span></span>${icon('chev', 16)}</a>
     <a href="#/people"><span class="ic">${icon('users')}</span><span class="grow"><b>บุคลากร</b><br><span class="faint">โครงสร้างส่วน${pu ? ' • รอยืนยันตัวตน ' + pu : ''}</span></span>${pu ? `<span class="badge">${pu}</span>` : ''}${icon('chev', 16)}</a>

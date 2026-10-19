@@ -1,14 +1,16 @@
-// ===== ตรวจแผน: คำนวณ Factor F • ค่าดำเนินการและค่าเสื่อมราคา (ตารางกรมบัญชีกลาง โหลดเมื่อเปิดหน้า) =====
+// ===== ตรวจแผน: คำนวณ Factor F • ค่าดำเนินการและค่าเสื่อมราคา • ค่าขนส่ง (ตารางกรมบัญชีกลาง โหลดเมื่อเปิดหน้า) =====
 import { S } from '../store.js';
 import { esc, $, $$, on, num, thDate, uniq, loadXLSX } from '../util.js';
 import { toast, icon, empty } from '../ui.js';
 
-const SUBS = [['factor', 'คำนวณ Factor F'], ['op', 'ค่าดำเนินการและค่าเสื่อมราคา']];
+const SUBS = [['factor', 'คำนวณ Factor F'], ['op', 'ค่าดำเนินการและค่าเสื่อมราคา'], ['transport', 'ค่าขนส่ง']];
 const ui = S.ui.check || (S.ui.check = {
   sub: 'factor',
   ff: { adv: 15, ret: 0, vat: 7, rain: 0, road: '', bridge: '', building: '', extra: '', cmp: {} },
-  op: { price: '', show: 'all', q: '' }
+  op: { price: '', show: 'all', q: '' },
+  tr: { price: '', dist: '', truck: 't6', open: false }
 });
+if (!ui.tr) ui.tr = { price: '', dist: '', truck: 't6', open: false };
 const tabs = (cur) => `<div class="seg-ctl" role="tablist" style="align-self:flex-start">${SUBS.map(([k, l]) => `<a href="#/check/${k}" role="tab" aria-selected="${k === cur}" class="${k === cur ? 'on' : ''}">${l}</a>`).join('')}</div>`;
 const f4 = (v) => (v === null || v === undefined || isNaN(v) ? '—' : Number(v).toFixed(4));
 const f2 = (v) => Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -19,7 +21,7 @@ const amount = (v) => { const n = num(v); return isNaN(n) || n < 0 ? 0 : n; };
 export function view(main, arg, app) {
   if (SUBS.some((s) => s[0] === arg)) ui.sub = arg;
   main.innerHTML = `${tabs(ui.sub)}<div class="loading" style="min-height:30vh"><span class="spin"></span>กำลังโหลดตาราง…</div>`;
-  const draw = ui.sub === 'op' ? opView : factorView;
+  const draw = ui.sub === 'op' ? opView : ui.sub === 'transport' ? transportView : factorView;
   draw(main).catch((e) => { console.error(e); main.innerHTML = tabs(ui.sub) + empty('โหลดตารางไม่ได้: ' + e.message); });
 }
 
@@ -196,4 +198,81 @@ async function exportOp(groups, rates, band) {
   });
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'ค่าดำเนินการ');
   XLSX.writeFile(wb, `ค่าดำเนินการและค่าเสื่อม_ดีเซล${band}บาท.xlsx`);
+}
+
+/* ---------- ค่าขนส่งวัสดุก่อสร้าง (6 ล้อ • 10 ล้อ • 10 ล้อลากพ่วง) ---------- */
+/** ค่าขนส่งต่อหน่วยที่ระยะ d กม.: 1–200 กม. ตามตาราง • 201–1000 กม. = ค่าที่ 200 กม. + (d − 200) × อัตราต่อ กม. */
+function transportCost(b, d, j) {
+  if (d <= 200) return { v: b.r[d - 1][j] };
+  const base = b.r[199][j], per = b.x[j];
+  return { v: Math.round((base + (d - 200) * per) * 100) / 100, base, per, over: d - 200 };
+}
+
+async function transportView(main) {
+  const { TR } = await import('../data/transport.js');
+  const s = ui.tr;
+  if (!s.price && ui.op.price) s.price = ui.op.price;
+  const keys = Object.keys(TR.bands.t6).map(Number).sort((a, b) => a - b), lo = keys[0], hi = keys[keys.length - 1];
+  const price = num(s.price), band = !s.price || isNaN(price) ? null : Math.floor(price + 1e-9);
+  const inBand = band !== null && TR.bands.t6[band];
+  const dist = num(s.dist), d = !s.dist || isNaN(dist) || dist <= 0 ? null : Math.max(1, Math.round(dist));
+  const fuel = (S.db.Fuel || []).filter((r) => /ดีเซล/.test(r.fuel) && !/พรีเมี่ยม|premium/i.test(r.fuel));
+  const quick = uniq(fuel.map((r) => r.province)).map((p) => fuel.filter((r) => r.province === p).reduce((m, r) => (!m || r.date > m.date ? r : m), null));
+  const card = (t) => {
+    const b = TR.bands[t.k][band], ton = transportCost(b, d, 0), m3 = transportCost(b, d, 1);
+    const how = (c, u) => (c.over ? `<div class="faint small">${f2(c.base)} + (${c.over} กม. × ${f2(c.per)}) ${u}</div>` : '');
+    return `<section class="card col trcard" style="gap:8px"><div><h3>${esc(t.name)}</h3><span class="faint">${esc(t.note)}</span></div>
+      <div class="row wrap" style="gap:18px;align-items:flex-start">
+        <div class="col" style="gap:2px"><span class="faint">บาท / ตัน</span><b class="trv">${f2(ton.v)}</b>${how(ton, 'บาท/ตัน')}</div>
+        <div class="col" style="gap:2px"><span class="faint">บาท / ลบ.ม.</span><b class="trv">${f2(m3.v)}</b>${how(m3, 'บาท/ลบ.ม.')}</div>
+      </div></section>`;
+  };
+  const tk = TR.trucks.find((t) => t.k === s.truck) || TR.trucks[0];
+  const table = () => {
+    const b = TR.bands[tk.k][band], N = 4, per = 50;
+    const cell = (km) => { const r = b.r[km - 1], on = km === d; return `<td class="num center ${on ? 'tron' : ''}">${km}</td><td class="r num ${on ? 'tron' : ''}">${f2(r[0])}</td><td class="r num ${on ? 'tron' : ''}">${f2(r[1])}</td>`; };
+    return `<div class="seg-ctl" id="tr-truck" style="margin:10px 0">${TR.trucks.map((t) => `<button data-v="${t.k}" class="${t.k === tk.k ? 'on' : ''}">${esc(t.name.replace('รถบรรทุก ', ''))}</button>`).join('')}</div>
+      <div class="scroll-x"><table class="tbl trtbl"><thead><tr>${'<th class="center">ระยะ (กม.)</th><th class="r">บาท/ตัน</th><th class="r">บาท/ลบ.ม.</th>'.repeat(N)}</tr></thead>
+      <tbody>${Array.from({ length: per }, (_, i) => `<tr>${Array.from({ length: N }, (_, c) => cell(c * per + i + 1)).join('')}</tr>`).join('')}
+        <tr><td class="center small ${d > 200 ? 'tron' : ''}" colspan="3">201 – 1000 กม. คิดเพิ่ม กม.ละ</td><td class="r num ${d > 200 ? 'tron' : ''}" colspan="2">${f2(b.x[0])} บาท/ตัน</td><td class="r num ${d > 200 ? 'tron' : ''}">${f2(b.x[1])} บาท/ลบ.ม.</td><td colspan="6"></td></tr></tbody></table></div>`;
+  };
+  main.innerHTML = `${tabs('transport')}
+  <div class="page-head"><div class="t"><h1>ค่าขนส่งวัสดุก่อสร้าง</h1><span class="muted small">ภูมิประเทศที่ราบ ผิวทางลาดยาง การจราจรปกติ • ราคาน้ำมันดีเซล อ.เมือง ${lo}.00 – ${hi}.99 บาท/ลิตร • ระยะ 1–200 กม. ตามตาราง เกิน 200 กม. คิดเพิ่มต่อ กม.</span></div>
+    ${inBand ? `<button class="btn" id="tr-x">${icon('download', 16)}ส่งออก Excel</button>` : ''}</div>
+  <section class="card col" style="gap:12px">
+    <div class="row wrap" style="gap:12px;align-items:flex-end">
+      <label class="f" style="flex:0 1 210px">ราคาน้ำมันดีเซล (บาท/ลิตร)<input class="inp num" id="tr-price" value="${esc(s.price)}" inputmode="decimal" placeholder="เช่น 32.94" style="font-size:20px;font-family:var(--head)"></label>
+      <label class="f" style="flex:0 1 220px">หรือเลือกช่วงราคา<select class="inp" id="tr-band"><option value="">— เลือก —</option>${keys.map((k) => `<option value="${k}" ${k === band ? 'selected' : ''}>${k}.00 – ${k}.99 บาท/ลิตร</option>`).join('')}</select></label>
+      <label class="f" style="flex:0 1 190px">ระยะทางขนส่ง (กม.)<input class="inp num" id="tr-dist" value="${esc(s.dist)}" inputmode="decimal" placeholder="เช่น 35" style="font-size:20px;font-family:var(--head)"></label>
+      ${inBand ? `<span class="tag green" style="height:34px;font-size:14px">ตารางช่วง ${band}.00 – ${band}.99 บาท/ลิตร${d ? ' • ระยะ ' + d + ' กม.' : ''}</span>` : ''}
+    </div>
+    ${quick.length ? `<div class="row wrap" style="gap:6px"><span class="muted small">ราคาดีเซลล่าสุด:</span>${quick.map((r) => `<button class="chip" data-fp="${Number(r.price).toFixed(2)}" title="${esc(r.fuel + ' • ' + thDate(r.date))}">${esc(r.province)} <b>${Number(r.price).toFixed(2)}</b></button>`).join('')}</div>` : ''}
+    ${band !== null && !inBand ? `<div class="note">ราคา ${esc(s.price)} บาท/ลิตร อยู่นอกตาราง (มีเฉพาะ ${lo}.00 – ${hi}.99 บาท/ลิตร)</div>` : ''}
+    ${d && dist !== d ? `<span class="faint small">ระยะ ${esc(s.dist)} กม. ปัดเป็น ${d} กม. ตามตาราง (รายกิโลเมตร)</span>` : ''}
+    ${d > 1000 ? '<div class="note">ตารางกำหนดอัตราเพิ่มต่อ กม. ถึง 1,000 กม. — ระยะเกินนี้คำนวณต่อด้วยอัตราเดียวกัน ควรตรวจสอบเงื่อนไขอีกครั้ง</div>' : ''}
+  </section>
+  ${inBand && d ? `<div class="grid trcards">${TR.trucks.map(card).join('')}</div>` : inBand ? empty('กรอกระยะทางขนส่ง เพื่อแสดงค่าขนส่งของรถทั้ง 3 ชนิด') : empty('กรอกราคาน้ำมันดีเซล หรือเลือกช่วงราคา แล้วกรอกระยะทางขนส่ง')}
+  ${inBand ? `<details class="card" id="tr-tbl" ${s.open ? 'open' : ''}><summary><b>ดูตารางค่าขนส่ง</b> <span class="faint small">ช่วงราคาน้ำมัน ${band}.00 – ${band}.99 บาท/ลิตร • ${esc(tk.name)} (${esc(tk.note)})</span></summary>${table()}</details>` : ''}`;
+  const redraw = () => transportView(main);
+  const commit = (el, fn) => { el.onchange = fn; el.onkeydown = (e) => { if (e.key === 'Enter') fn(); }; };
+  commit($('#tr-price'), () => { s.price = $('#tr-price').value.trim(); redraw(); });
+  commit($('#tr-dist'), () => { s.dist = $('#tr-dist').value.trim(); redraw(); });
+  $('#tr-band').onchange = (e) => { s.price = e.target.value ? e.target.value + '.00' : ''; redraw(); };
+  on(main, '[data-fp]', 'click', (e, b) => { s.price = b.dataset.fp; redraw(); });
+  const det = $('#tr-tbl'); if (det) det.ontoggle = () => (s.open = det.open);
+  on(main, '#tr-truck button', 'click', (e, b) => { s.truck = b.dataset.v; s.open = true; redraw(); });
+  if ($('#tr-x')) $('#tr-x').onclick = () => exportTransport(TR, band);
+}
+
+async function exportTransport(TR, band) {
+  try { await loadXLSX(); } catch (e) { return toast(e.message, 'err'); }
+  const wb = XLSX.utils.book_new();
+  TR.trucks.forEach((t) => {
+    const b = TR.bands[t.k][band];
+    const aoa = [[`ตารางค่าขนส่งวัสดุก่อสร้าง ${t.name} (${t.note}) • ราคาน้ำมันดีเซล อ.เมือง ${band}.00 - ${band}.99 บาท/ลิตร`], ['ระยะขนส่ง (กม.)', 'ค่าบรรทุก บาท/ตัน', 'ค่าบรรทุก บาท/ลบ.ม.']];
+    b.r.forEach((r, i) => aoa.push([i + 1, r[0], r[1]]));
+    aoa.push(['201-1000 (ต่อ กม.)', b.x[0], b.x[1]]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), t.name.replace('รถบรรทุก ', '').replace(' และรถลากพ่วง', ' พ่วง'));
+  });
+  XLSX.writeFile(wb, `ค่าขนส่ง_ดีเซล${band}บาท.xlsx`);
 }

@@ -116,7 +116,7 @@ function menu() {
   const m = [
     { k: 'home', label: 'หน้าแรก', href: 'home', cols: [['สำรวจ', 'big', [['ภาพรวมแผนทั้งเขต', 'home'], ['กราฟเปรียบเทียบ', 'home']]], ['ทางลัด', 'sm', [['งานสั่งการของฉัน', 'orders'], ['ประชุมที่กำลังจะมาถึง', 'meetings']]]] },
     { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(can('edit_plan') ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
-    { k: 'check', label: 'ตรวจแผน', href: 'check', cols: [['ตรวจแผน', 'big', [['คำนวณ Factor F', 'check/factor'], ['ค่าดำเนินการและค่าเสื่อมราคา', 'check/op']]]] },
+    { k: 'check', label: 'ตรวจแผน', href: 'check', cols: [['ตรวจแผน', 'big', [['คำนวณ Factor F', 'check/factor'], ['ค่าดำเนินการและค่าเสื่อมราคา', 'check/op'], ['ค่าขนส่ง', 'check/transport']]]] },
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },
     { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', badge: calBadge(), cols: [['ปฏิทิน', 'big', [['ประชุม', 'meetings'], ['วันลา', 'leaves']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new']]]] },
     { k: 'files', label: 'คลังเอกสาร', href: 'files', badge: f, cols: [['คลังเอกสาร', 'big', [['รอจัดหมวด', 'files'], ['เอกสารทั้งหมด', 'files/all']]]] },
