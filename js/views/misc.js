@@ -1,18 +1,18 @@
 // ===== เมนูเพิ่มเติม (มือถือ) + ราคาน้ำมัน =====
-import { S, isAdmin, pendingFiles, pendingUsers, setting } from '../store.js';
+import { S, isAdmin, pendingUsers, setting, myOpenOrders } from '../store.js';
 import { DEMO } from '../api.js';
 import { CONFIG } from '../config.js';
 import { esc, $, on, thDate, uniq, iso, today, toDate, by } from '../util.js';
 import { avatar, icon, empty } from '../ui.js';
 
 export function more(main, arg, app) {
-  const u = S.user, pf = pendingFiles().length, pu = isAdmin() ? pendingUsers().length : 0;
+  const u = S.user, mo = myOpenOrders().length, pu = isAdmin() ? pendingUsers().length : 0;
   main.innerHTML = `
   <a class="card row" href="#/profile" style="background:var(--green);color:#FFFEFB">${avatar(u, 58)}<span class="col grow" style="gap:2px"><b style="font-family:var(--head);font-size:18px;font-weight:500">${esc(u.full_name)}</b><span class="small" style="color:#C7CDB8">${esc(u.position)} • ${esc(u.role)}${u.is_admin === true ? ' • แอดมิน' : ''}</span></span><span class="small" style="color:var(--gold)">โปรไฟล์ ›</span></a>
   <section class="card flush morelist">
+    <a href="#/plans"><span class="ic">${icon('list')}</span><span class="grow"><b>ทะเบียนแผน</b><br><span class="faint">แผนที่ได้รับงบ • สถานะแขวง/เขต • นำเข้าไฟล์ พ.ร.บ.</span></span>${icon('chev', 16)}</a>
     <a href="#/check"><span class="ic">${icon('calc')}</span><span class="grow"><b>ตรวจแผน</b><br><span class="faint">คำนวณ Factor F • ค่าดำเนินการและค่าเสื่อมราคา • ค่าขนส่ง</span></span>${icon('chev', 16)}</a>
-    <a href="#/files"><span class="ic">${icon('file')}</span><span class="grow"><b>คลังเอกสาร</b><br><span class="faint">ไฟล์จากกลุ่ม LINE${pf ? ' • รอจัดหมวด ' + pf : ''}</span></span>${pf ? `<span class="badge">${pf}</span>` : ''}${icon('chev', 16)}</a>
-    <a href="#/prices"><span class="ic">${icon('fuel')}</span><span class="grow"><b>ราคาวัสดุ</b><br><span class="faint">น้ำมัน • ยางแอสฟัลต์ • วัสดุจากแหล่ง • คอนกรีต/ปูนซีเมนต์</span></span>${icon('chev', 16)}</a>
+    <a href="#/orders"><span class="ic">${icon('task')}</span><span class="grow"><b>งานสั่งการ</b><br><span class="faint">งานที่ได้รับมอบหมาย${mo ? ' • ค้าง ' + mo + ' งาน' : ''}</span></span>${mo ? `<span class="badge">${mo}</span>` : ''}${icon('chev', 16)}</a>
     <a href="#/people"><span class="ic">${icon('users')}</span><span class="grow"><b>บุคลากร</b><br><span class="faint">โครงสร้างส่วน${pu ? ' • รอยืนยันตัวตน ' + pu : ''}</span></span>${pu ? `<span class="badge">${pu}</span>` : ''}${icon('chev', 16)}</a>
     ${isAdmin() ? `<a href="#/settings"><span class="ic">${icon('gear')}</span><span class="grow"><b>ตั้งค่าระบบ</b><br><span class="faint">เฉพาะผู้ดูแลระบบ • แนะนำใช้บนคอมพิวเตอร์</span></span>${icon('chev', 16)}</a>` : ''}
   </section>

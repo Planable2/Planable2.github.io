@@ -164,7 +164,9 @@ function seed() {
     ['โรงหล่อท่อ หจก.โกศัยคอนกรีต', 'ทล.129 กม.2+100 LT • ต.นาจักร อ.เมือง จ.แพร่ • 18.120443, 100.15543', [null, 732, 1224, 2280, 3144, 5100], [null, 576, 972, 1800, 2520, 4080]]]);
   pipe('แขวง 3', [['โรงหล่อท่อ บจก.ทรัพย์แสงดาว', 'ทล.101 กม.357+755 RT • ต.ดู่ใต้ อ.เมือง จ.น่าน • 18.703817, 100.74942', [null, 900, 1350, 2450, 3500, 5600, 8500], [null, 780, 1180, 1950, 2750, 4500, 7200]]]);
   const Trips = [{ trip_id: 'TR-0001', date_from: d(1), date_to: d(2), title: 'ตรวจสอบแผนงานร่วมกับแขวง', place: 'แขวงทางหลวงน่านที่ 1', members: 'P03,P04', note: 'รถราชการ', created_by: 'P03', created_at: nowIso() }];
-  return { cfg, db: { Trips, Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel, Leaves, MatDocs, MatPrices }, sessions: {} };
+  const RefDocs = [['RD-0001', 'Factor F', 'ตาราง Factor F (ดอกเบี้ย 6%)', 'หนังสือกรมบัญชีกลาง ด่วนที่สุด ที่ กค 0433.2/ว 481 ลว. 26 มิ.ย. 2569', 'Factor F.pdf', 'pdf', 6580902], ['RD-0002', 'ตารางค่าขนส่ง', 'ตารางค่าขนส่งวัสดุก่อสร้าง รถ 6 ล้อ / 10 ล้อ / 10 ล้อพ่วง', 'ราคาน้ำมัน 15.00–50.99 บาท/ลิตร', 'ค่าขนส่ง 10 ล้อ.pdf', 'pdf', 734500], ['RD-0003', 'ตารางค่าดำเนินการและค่าเสื่อมราคา', 'ตารางค่าดำเนินการและค่าเสื่อมราคา', 'หนังสือกรมบัญชีกลาง ที่ กค 0433.2/ว 475', 'Operation.pdf', 'pdf', 8076659]]
+    .map((r) => ({ ref_id: r[0], category: r[1], title: r[2], note: r[3], url: 'https://drive.google.com/', drive_file_id: 'demo', file_name: r[4], ext: r[5], size_bytes: r[6], created_by: 'P06', created_at: nowIso() }));
+  return { cfg, db: { RefDocs, Trips, Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel, Leaves, MatDocs, MatPrices }, sessions: {} };
 }
 
 let DB = null;
@@ -352,6 +354,16 @@ const ACTIONS = {
     if (!x.trip_id) { x.trip_id = nextId(D.Trips, 'trip_id', 'TR-'); x.created_by = u.user_id; x.created_at = nowIso(); }
     const saved = upsert(D.Trips, 'trip_id', x); persist(); return { trip: saved };
   },
+  saveRefDoc: (p, u) => {
+    need(u, 'classify_file', 'บทบาทของคุณเพิ่มเอกสารอ้างอิงไม่ได้');
+    const D = db().db, d = Object.assign({}, p.doc); D.RefDocs = D.RefDocs || [];
+    if (!String(d.category || '').trim() || !String(d.title || '').trim()) throw new Error('กรุณาใส่หมวดและชื่อเอกสาร');
+    if (p.file) Object.assign(d, { url: 'https://drive.google.com/', drive_file_id: 'demo', file_name: p.file.name, ext: (/\.([a-z0-9]+)$/i.exec(p.file.name) || [])[1] || '', size_bytes: Math.round(p.file.data.length * 0.75) });
+    else if (d.url !== undefined && !/^https?:\/\//i.test(d.url)) throw new Error('ลิงก์ต้องขึ้นต้นด้วย http:// หรือ https://');
+    if (!d.ref_id) { d.ref_id = nextId(D.RefDocs, 'ref_id', 'RD-'); d.created_by = u.user_id; d.created_at = nowIso(); }
+    const saved = upsert(D.RefDocs, 'ref_id', d); persist(); return { doc: saved };
+  },
+  deleteRefDoc: (p) => { const D = db().db; D.RefDocs = (D.RefDocs || []).filter((x) => x.ref_id !== p.ref_id); persist(); return { ref_id: p.ref_id }; },
   deleteTrip: (p) => { const D = db().db; D.Trips = (D.Trips || []).filter((x) => x.trip_id !== p.trip_id); persist(); return { trip_id: p.trip_id }; },
   deleteMatDoc: (p, u) => {
     need(u, 'edit_price', 'บทบาทของคุณกรอกราคาวัสดุไม่ได้');

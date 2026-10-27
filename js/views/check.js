@@ -1,7 +1,7 @@
 // ===== ตรวจแผน: คำนวณ Factor F • ค่าดำเนินการและค่าเสื่อมราคา • ค่าขนส่ง (ตารางกรมบัญชีกลาง โหลดเมื่อเปิดหน้า) =====
 import { S } from '../store.js';
 import { esc, $, $$, on, num, thDate, uniq, loadXLSX } from '../util.js';
-import { toast, icon, empty } from '../ui.js';
+import { toast, icon, empty, modal, modalHead, closeModal } from '../ui.js';
 import { materialCatalog } from './prices.js';
 
 const SUBS = [['factor', 'คำนวณ Factor F'], ['op', 'ค่าดำเนินการและค่าเสื่อมราคา'], ['transport', 'ค่าขนส่ง']];
@@ -287,7 +287,7 @@ const SURF = { t6: { a: [1.00, 2.12, 2.56], l: [1.24, 2.36, 2.80] }, t10: { a: [
 const DKEYS = [['pr', 'a', 0], ['ph', 'a', 1], ['pm', 'a', 2], ['lr', 'l', 0], ['lh', 'l', 1], ['lm', 'l', 2]];
 /** ค่าขนขึ้นลง (บาท/ตัน) • ค่าตัด ดัด และผูกเหล็กเส้นเสริมคอนกรีต (บาท/ตัน) */
 const LOADS = [['', '—', 0], ['equip', 'อุปกรณ์', 80], ['mc', 'ยาง MC', 25], ['ac', 'ยาง AC', 35], ['pma', 'ยาง P.M.A.', 50], ['steel', 'เหล็กเส้น', 80], ['cement', 'ปูนซีเมนต์', 50]];
-const CUTS = [['', '—', 0], ['c10', 'ผิวเรียบ Ø < 10 มม.', 4900], ['c16', 'ผิวเรียบ/ข้ออ้อย Ø 10–16 มม.', 3900], ['c99', 'ผิวเรียบ/ข้ออ้อย Ø > 16 มม.', 3500]];
+const CUTS = [['', '—', 0, ''], ['c10', 'ผิวเรียบ Ø < 10 มม.', 4900, 'Ø<10'], ['c16', 'ผิวเรียบ/ข้ออ้อย Ø 10–16 มม.', 3900, 'Ø10–16'], ['c99', 'ผิวเรียบ/ข้ออ้อย Ø > 16 มม.', 3500, 'Ø>16']];
 const TRUCKS3 = [['t6', '6 ล้อ'], ['t10', '10 ล้อ'], ['t10p', '10 ล้อพ่วง']];
 const ROW_KEY = 'tr-rows';
 const newRow = () => ({ item: '', src: '', unit: 'm3', price: '', truck: 't10', pr: '', ph: '', pm: '', lr: '', lh: '', lm: '', load: '', cut: '', place: '' });
@@ -326,43 +326,62 @@ function matSection(TR, band, top, cat) {
   const rows = rowsOf(), groups = uniq(cat.map((c) => c.group));
   const opt = (v, l, cur) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`;
   const unitTxt = (u) => (u === 'ton' ? 'ตัน' : 'ลบ.ม.');
-  const tr = (row, i) => {
-    const c = calcRow(row, cat, TR, band, top), f = SURF[row.truck];
-    const dIn = ([k, s, j]) => f[s][j] === null ? '<td class="center faint">—</td>' : `<td><input class="inp num trm-d" data-i="${i}" data-f="${k}" value="${esc(row[k])}" placeholder="${k === 'pr' ? esc(top || '0') : ''}" inputmode="decimal" title="ตัวแปร ${f[s][j].toFixed(2)}"></td>`;
-    return `<tr>
-      <td class="center">${i + 1}</td>
-      <td><select class="inp trm-s" data-i="${i}" data-f="item" style="min-width:170px">${opt('', '— เลือกวัสดุ —', row.item)}${groups.map((g) => `<optgroup label="${esc(g)}">${uniq(cat.filter((x) => x.group === g).map((x) => x.item)).map((it) => opt(g + '|' + it, it, row.item)).join('')}</optgroup>`).join('')}</select></td>
-      <td><select class="inp trm-s" data-i="${i}" data-f="src" style="min-width:170px" ${c.entries.length ? '' : 'disabled'}>${c.entries.map((x) => opt(x.src, `${x.src} — ${f2(x.price)}/${x.unit || ''}`, c.e && c.e.src)).join('')}</select></td>
-      <td><select class="inp trm-s" data-i="${i}" data-f="unit">${opt('ton', 'ตัน', row.unit)}${opt('m3', 'ลบ.ม.', row.unit)}</select></td>
-      <td><input class="inp num trm-p" data-i="${i}" data-f="price" value="${esc(row.price)}" placeholder="${c.e ? f2(c.e.price) : ''}" inputmode="decimal" title="ว่าง = ใช้ราคาจากหน้าราคาวัสดุ"></td>
-      <td><select class="inp trm-s" data-i="${i}" data-f="truck">${TRUCKS3.map(([k, l]) => opt(k, l, row.truck)).join('')}</select></td>
-      ${DKEYS.map(dIn).join('')}
-      <td class="r num">${c.total ? f2(c.total) : '—'}</td>
-      <td class="r num">${c.factor.toFixed(4)}</td>
-      <td class="r num">${c.cost !== null ? f2(c.cost) : '—'}</td>
-      <td><select class="inp trm-s" data-i="${i}" data-f="load" title="ค่าขนขึ้นลง บาท/ตัน">${LOADS.map(([k, l, v]) => opt(k, v ? `${l} ${v}` : l, row.load)).join('')}</select></td>
-      <td><select class="inp trm-s" data-i="${i}" data-f="cut" title="ค่าตัด ดัด ผูกเหล็ก บาท/ตัน">${CUTS.map(([k, l, v]) => opt(k, v ? `${l} ${f2(v)}` : l, row.cut)).join('')}</select></td>
-      <td class="r num"><b class="trm-site">${c.site !== null ? f2(c.site) : '—'}</b><div class="faint small">บาท/${unitTxt(row.unit)}</div></td>
-      <td><input class="inp trm-t" data-i="${i}" data-f="place" value="${esc(row.place)}" placeholder="เช่น ท่าทรายเมืองเชียง"></td>
-      <td><button class="icon-btn sm" data-rm="${i}" aria-label="ลบแถว">${icon('x', 14)}</button></td></tr>`;
+  const fl = (label, body, area, extra = '') => `<label class="trm-f" style="grid-area:${area}" ${extra}><span>${label}</span>${body}</label>`;
+  const card = (row, i) => {
+    const c = calcRow(row, cat, TR, band, top);
+    const parts = DKEYS.filter((x) => c.ds.find((d) => d.k === x[0]).d).map(([k]) => `${{ pr: 'ราบ', ph: 'เนิน', pm: 'เขา', lr: 'ลูกรังราบ', lh: 'ลูกรังเนิน', lm: 'ลูกรังเขา' }[k]} ${f2(c.ds.find((d) => d.k === k).d).replace('.00', '')}`);
+    const dist = `<button class="inp trm-dist" data-dist="${i}" type="button"><b>${c.total ? f2(c.total).replace('.00', '') + ' กม.' : 'กรอกระยะทาง'}</b><span>${esc([row.place, parts.join(' • ')].filter(Boolean).join(' • ') || 'แตะเพื่อกรอก ลาดยาง/ลูกรัง • ราบ/เนิน/เขา')}</span></button>`;
+    return `<article class="trm-row">
+      <span class="trm-no">${i + 1}</span>
+      ${fl('วัสดุ', `<select class="inp" data-i="${i}" data-f="item">${opt('', '— เลือกวัสดุ —', row.item)}${groups.map((g) => `<optgroup label="${esc(g)}">${uniq(cat.filter((x) => x.group === g).map((x) => x.item)).map((it) => opt(g + '|' + it, it, row.item)).join('')}</optgroup>`).join('')}</select>`, 'item')}
+      ${fl('ราคาจาก', `<select class="inp" data-i="${i}" data-f="src" ${c.entries.length ? '' : 'disabled'}>${c.entries.length ? c.entries.map((x) => opt(x.src, `${x.src} — ${f2(x.price)}/${x.unit || ''}`, c.e && c.e.src)).join('') : '<option>—</option>'}</select>`, 'src')}
+      ${fl('ราคา (บาท)', `<input class="inp num" data-i="${i}" data-f="price" value="${esc(row.price)}" placeholder="${c.e ? f2(c.e.price) : '0.00'}" inputmode="decimal" title="ว่าง = ใช้ราคาจากหน้าราคาวัสดุ">`, 'price')}
+      ${fl('หน่วย', `<select class="inp" data-i="${i}" data-f="unit">${opt('ton', 'ตัน', row.unit)}${opt('m3', 'ลบ.ม.', row.unit)}</select>`, 'unit')}
+      ${fl('รถขนส่ง', `<select class="inp" data-i="${i}" data-f="truck">${TRUCKS3.map(([k, l]) => opt(k, l, row.truck)).join('')}</select>`, 'truck')}
+      <div class="trm-f" style="grid-area:dist"><span>ระยะทาง / แหล่งวัสดุ</span>${dist}</div>
+      <div class="trm-f trm-cost" style="grid-area:cost"><span>ค่าขนส่ง</span><b>${c.cost !== null ? f2(c.cost) : '—'}</b><small>F ${c.factor.toFixed(4)}</small></div>
+      ${fl('ค่าขนขึ้น-ลง (บาท/ตัน)', `<select class="inp" data-i="${i}" data-f="load">${LOADS.map(([k, l, v]) => opt(k, v ? `${l} • ${v}` : 'ไม่มี', row.load)).join('')}</select>`, 'load')}
+      ${fl('ค่าตัด/ดัดเหล็ก (บาท/ตัน)', `<select class="inp" data-i="${i}" data-f="cut">${CUTS.map(([k, l, v, s]) => opt(k, v ? `${s} มม. • ${f2(v).replace('.00', '')}` : 'ไม่มี', row.cut)).join('')}</select>`, 'cut')}
+      <div class="trm-site"><span>ราคาวัสดุที่หน้างาน</span><b>${c.site !== null ? f2(c.site) : '—'}</b><small>บาท/${unitTxt(row.unit)}</small></div>
+      <button class="icon-btn sm trm-rm" data-rm="${i}" aria-label="ลบรายการ" title="ลบรายการ">${icon('x', 14)}</button>
+    </article>`;
   };
   return `<section class="card col" style="gap:10px" id="trm">
-    <div class="row wrap"><h2 class="grow" style="margin:0">ราคาวัสดุที่หน้างาน (ราคาวัสดุ + ค่าขนส่ง)</h2>
-      <button class="btn sm" id="trm-add">${icon('plus', 14)}เพิ่มรายการ</button><button class="btn sm" id="trm-x">${icon('download', 14)}ส่งออก Excel</button><button class="btn sm danger" id="trm-clear">ล้างตาราง</button></div>
+    <div class="row wrap"><h2 class="grow" style="margin:0">ราคาวัสดุที่หน้างาน</h2>
+      <button class="btn sm" id="trm-add">${icon('plus', 14)}เพิ่มรายการ</button><button class="btn sm" id="trm-x">${icon('download', 14)}Excel</button><button class="btn sm danger" id="trm-clear">ล้าง</button></div>
     ${band === null ? '<div class="note">กรอกราคาน้ำมันด้านบนก่อน เพื่อคำนวณค่าขนส่ง</div>' : ''}
     ${cat.length ? '' : '<div class="note">ยังไม่มีราคาในหน้าราคาวัสดุ — พิมพ์ราคาเองในช่องราคาได้</div>'}
-    <div class="scroll-x"><table class="tbl trmtbl"><thead>
-      <tr><th rowspan="2">ลำดับ</th><th rowspan="2">วัสดุ</th><th rowspan="2">ราคาจาก</th><th rowspan="2">หน่วย</th><th rowspan="2" class="r">ราคา</th><th rowspan="2">รถขนส่ง</th><th colspan="3" class="center">ทางลาดยาง (กม.)</th><th colspan="3" class="center">ทางลูกรัง (กม.)</th><th rowspan="2" class="r">รวมระยะ</th><th rowspan="2" class="r">Factor<br>ค่าขนส่ง</th><th rowspan="2" class="r">ค่าขนส่ง</th><th rowspan="2">ค่าขนขึ้น-ลง</th><th rowspan="2">ค่าตัด/ดัดเหล็ก</th><th rowspan="2" class="r">ราคาวัสดุ<br>ที่หน้างาน</th><th rowspan="2">แหล่งวัสดุ</th><th rowspan="2"></th></tr>
-      <tr><th class="center">ราบ</th><th class="center">เนิน</th><th class="center">เขา</th><th class="center">ราบ</th><th class="center">เนิน</th><th class="center">เขา</th></tr></thead>
-      <tbody>${rows.map(tr).join('')}</tbody></table></div>
-    <span class="faint small">ทางลาดยาง-ราบ ว่าง = ใช้ระยะทางขนส่งด้านบน • Factor ค่าขนส่ง = Σ(ระยะ × ตัวแปรสภาพผิวทาง) ÷ รวมระยะ • ค่าขนส่ง = อัตราตามตาราง (รวมระยะ) × Factor • ราคาวัสดุที่หน้างาน = ราคา + ค่าขนส่ง + ค่าขนขึ้น-ลง + ค่าตัด/ดัดเหล็ก (สองรายการหลังเป็นบาท/ตัน)</span>
+    <div class="trm-list">${rows.map(card).join('')}</div>
+    <span class="faint small">ราคาที่หน้างาน = ราคา + ค่าขนส่ง + ค่าขนขึ้น-ลง + ค่าตัด/ดัดเหล็ก • ค่าขนส่ง = อัตราตามตาราง (รวมระยะ) × Factor • Factor = Σ(ระยะ × ตัวแปรสภาพผิวทาง) ÷ รวมระยะ</span>
     <details><summary class="small" style="cursor:pointer">ตัวแปรสภาพผิวทาง • ค่าขนขึ้นลง • ค่าตัดดัดเหล็ก</summary>
-      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-top:8px">
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:8px">
         <table class="tbl"><thead><tr><th>รถ</th><th class="r">ลาดยาง ราบ/เนิน/เขา</th><th class="r">ลูกรัง ราบ/เนิน/เขา</th></tr></thead><tbody>${TRUCKS3.map(([k, l]) => `<tr><td>${l}</td><td class="r num">${SURF[k].a.map((x) => (x === null ? '—' : x.toFixed(2))).join(' / ')}</td><td class="r num">${SURF[k].l.map((x) => (x === null ? '—' : x.toFixed(2))).join(' / ')}</td></tr>`).join('')}</tbody></table>
         <table class="tbl"><thead><tr><th>ค่าขนขึ้นลง</th><th class="r">บาท/ตัน</th></tr></thead><tbody>${LOADS.slice(1).map(([, l, v]) => `<tr><td>${l}</td><td class="r num">${v}</td></tr>`).join('')}</tbody></table>
         <table class="tbl"><thead><tr><th>ตัด ดัด ผูกเหล็กเส้น</th><th class="r">บาท/ตัน</th></tr></thead><tbody>${CUTS.slice(1).map(([, l, v]) => `<tr><td>${l}</td><td class="r num">${f2(v)}</td></tr>`).join('')}</tbody></table>
       </div></details>
   </section>`;
+}
+
+/** หน้าต่างกรอกระยะทาง 6 ช่อง + แหล่งวัสดุ — แสดงรวมระยะ/Factor/ค่าขนส่งทันทีระหว่างพิมพ์ */
+function distDialog(i, TR, band, top, cat, redraw) {
+  const row = rowsOf()[i], draft = { ...row }, f = SURF[row.truck];
+  const NAMES = { pr: 'ราบ', ph: 'ลูกเนิน', pm: 'ภูเขา', lr: 'ราบ', lh: 'ลูกเนิน', lm: 'ภูเขา' };
+  const inp = ([k, s, j]) => f[s][j] === null ? `<label class="f"><span>${NAMES[k]} <span class="faint">(—)</span></span><input class="inp" disabled placeholder="ไม่มีค่า"></label>`
+    : `<label class="f"><span>${NAMES[k]} <span class="faint">× ${f[s][j].toFixed(2)}</span></span><input class="inp num" data-k="${k}" value="${esc(draft[k])}" placeholder="${k === 'pr' ? esc(top || '0') : '0'}" inputmode="decimal"></label>`;
+  modal(`${modalHead('ระยะทางขนส่ง • รายการที่ ' + (i + 1), (TRUCKS3.find((x) => x[0] === row.truck) || [])[1] + ' • ตัวเลขหลัง × = ตัวแปรสภาพผิวทาง')}
+    <label class="f">แหล่งวัสดุ<input class="inp" data-k="place" value="${esc(draft.place)}" placeholder="เช่น ท่าทรายเมืองเชียง"></label>
+    <b class="small">ทางลาดยาง (กม.)</b><div class="trm-dg">${DKEYS.slice(0, 3).map(inp).join('')}</div>
+    <b class="small">ทางลูกรัง (กม.)</b><div class="trm-dg">${DKEYS.slice(3).map(inp).join('')}</div>
+    <div class="note grey" id="dd-sum"></div>
+    <span class="faint small">ลาดยาง-ราบ ว่าง = ใช้ระยะทางขนส่งด้านบน (${esc(top || '0')} กม.)</span>
+    <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="dd-ok">ใช้ระยะนี้</button></div>`, {
+    onMount: (dlg) => {
+      const sum = () => { const c = calcRow(draft, cat, TR, band, top); $('#dd-sum', dlg).innerHTML = `รวมระยะ <b>${f2(c.total)}</b> กม. • Factor <b>${c.factor.toFixed(4)}</b> • ค่าขนส่ง <b>${c.cost !== null ? f2(c.cost) : '—'}</b> บาท/${draft.unit === 'ton' ? 'ตัน' : 'ลบ.ม.'}`; };
+      $$('[data-k]', dlg).forEach((el) => (el.oninput = () => { draft[el.dataset.k] = el.value.trim(); sum(); }));
+      sum();
+      $('#dd-ok', dlg).onclick = () => { Object.assign(row, draft); saveRows(); closeModal(); redraw(); };
+    }
+  });
 }
 
 function bindMat(main, TR, band, top, cat, redraw) {
@@ -374,9 +393,10 @@ function bindMat(main, TR, band, top, cat, redraw) {
     if (k === 'src') row.price = '';
     saveRows(); redraw();
   }));
+  on(main, '#trm [data-dist]', 'click', (e, b) => distDialog(Number(b.dataset.dist), TR, band, top, cat, redraw));
   on(main, '#trm [data-rm]', 'click', (e, b) => { rows.splice(Number(b.dataset.rm), 1); saveRows(); redraw(); });
   $('#trm-add').onclick = () => { rows.push(newRow()); saveRows(); redraw(); };
-  $('#trm-clear').onclick = () => { if (confirm('ล้างทุกแถวในตาราง?')) { ui.tr.rows = [newRow()]; saveRows(); redraw(); } };
+  $('#trm-clear').onclick = () => { if (confirm('ล้างทุกรายการ?')) { ui.tr.rows = [newRow()]; saveRows(); redraw(); } };
   $('#trm-x').onclick = async () => {
     try { await loadXLSX(); } catch (x) { return toast(x.message, 'err'); }
     const aoa = [[`รายละเอียดราคาวัสดุและค่าขนส่ง • ราคาน้ำมันดีเซล ${band !== null ? band + '.00 - ' + band + '.99' : '-'} บาท/ลิตร`],

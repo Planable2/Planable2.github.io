@@ -272,7 +272,88 @@ details.card > summary { cursor: pointer; list-style: revert; }
 /* ---------- ราคาวัสดุ: ท่อ / หินผสมแอสฟัลต์ • ตรวจแผน: ราคาวัสดุที่หน้างาน ---------- */
 .pipetbl .pc3 { border-left: 2px solid var(--line); }
 .mixrow td { background: var(--green-soft); }
-.trmtbl td, .trmtbl th { padding: 5px 4px; vertical-align: middle; } .trmtbl th { white-space: normal; line-height: 1.25; }
-.trmtbl .inp { height: 32px; font-size: 13px; padding: 0 6px; border-radius: 10px; }
-.trmtbl .trm-d { width: 58px; } .trmtbl .trm-p { width: 92px; } .trmtbl .trm-t { min-width: 140px; }
-.trmtbl .trm-site { font-family: var(--head); font-size: 16px; font-weight: 500; color: var(--green-ink); }
+.trm-list { display: flex; flex-direction: column; gap: 10px; }
+.trm-row { position: relative; display: grid; gap: 8px 10px; align-items: end; padding: 12px 44px 12px 12px; border: 1px solid var(--line2); border-radius: 18px; background: var(--soft);
+  grid-template-columns: 26px repeat(7, minmax(0, 1fr));
+  grid-template-areas: "no item item src src src price site" "no unit truck dist dist cost load cut"; }
+.trm-row .trm-no { grid-area: no; align-self: center; font-family: var(--head); color: var(--muted); text-align: center; }
+.trm-f { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.trm-f > span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trm-f .inp { height: 38px; font-size: 13px; padding: 0 8px; border-radius: 12px; min-width: 0; width: 100%; }
+.trm-dist { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; height: auto !important; min-height: 38px; padding: 4px 10px !important; cursor: pointer; background: var(--card); }
+.trm-dist b { font-size: 13px; } .trm-dist span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.trm-cost b { font-size: 15px; font-variant-numeric: tabular-nums; line-height: 1.2; } .trm-cost small, .trm-site small { font-size: 11px; color: var(--muted); }
+.trm-site { grid-area: site; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; background: var(--green); color: #FFFEFB; border-radius: 14px; padding: 6px 12px; min-height: 52px; }
+.trm-site span { font-size: 11px; color: #C7CDB8; } .trm-site b { font-family: var(--head); font-size: 20px; font-weight: 500; line-height: 1.15; font-variant-numeric: tabular-nums; } .trm-site small { color: #C7CDB8; }
+.trm-row .trm-rm { position: absolute; top: 8px; right: 6px; }
+.trm-dg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 1100px) {
+  .trm-row { grid-template-columns: 22px repeat(4, minmax(0, 1fr)); grid-template-areas: "no item item src src" "no price unit truck truck" "no dist dist dist cost" "no load load cut cut" "no site site site site"; }
+  .trm-site { flex-direction: row; justify-content: space-between; align-items: center; gap: 8px; min-height: 0; }
+}
+@media (max-width: 560px) {
+  .trm-row { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 38px 10px 10px; grid-template-areas: "item item" "src src" "price unit" "truck cost" "dist dist" "load cut" "site site"; }
+  .trm-row .trm-no { display: none; }
+}
+
+/* ---------- มือถือ: กระชับขึ้น (ตัวอักษรช่องกรอกคง 14–16px กัน iOS ซูม) ---------- */
+@media (max-width: 860px) {
+  html, body { font-size: 14px; }
+  main.page { gap: 12px; padding: 12px 12px 104px; }
+  h1 { font-size: 20px; } h2 { font-size: 16px; } h3 { font-size: 15px; }
+  .mhead { padding: calc(8px + env(safe-area-inset-top)) 14px 8px; } .mhead h1 { font-size: 18px; }
+  .card { padding: 14px; border-radius: 18px; } .card h2 { margin-bottom: 8px; }
+  .page-head { gap: 8px; } .page-head .t { min-width: 0; flex-basis: 100%; }
+  .btn { height: 38px; padding: 0 14px; font-size: 13px; border-radius: 19px; gap: 6px; }
+  .btn.sm { height: 32px; padding: 0 11px; }
+  .inp, select.inp { height: 40px; border-radius: 14px; padding: 0 12px; }
+  label.f { gap: 4px; font-size: 12px; }
+  .fgrid { gap: 10px; }
+  .kpis { gap: 8px; }
+  .kpi { padding: 10px 12px; border-radius: 16px; gap: 0; }
+  .kpi .v { font-size: 22px; line-height: 1.25; } .kpi .l { font-size: 12px; } .kpi .s { font-size: 11px; }
+  .seg-ctl button, .seg-ctl a { height: 30px; padding: 0 10px; font-size: 12px; }
+  .seg-ctl a { padding: 0 12px; font-size: 13px; }
+  .chip { height: 30px; padding: 0 10px; font-size: 12px; }
+  .filters { padding: 8px; gap: 6px; border-radius: 18px; } .filters select { height: 34px; font-size: 13px; }
+  .search { height: 38px; }
+  .legend { gap: 4px 10px; font-size: 11px; }
+  .bars-h .r { grid-template-columns: 62px minmax(0, 1fr) auto; gap: 8px; min-height: 28px; } .bars-h .track { height: 16px; } .bars-h .small { font-size: 12px; }
+  .bars-v { height: 180px; gap: 6px; } .xl { gap: 6px; } .xl span { font-size: 11px; }
+  .donut { width: 160px; height: 160px; } .donut > div { width: 96px; height: 96px; }
+  .item { padding: 10px 12px; gap: 6px; border-radius: 16px; }
+  .note { padding: 8px 12px; font-size: 12px; border-radius: 14px; }
+  .tbl { font-size: 13px; } .tbl td, .tbl th { padding: 8px; }
+  .grp > button.gh { padding: 12px 14px; gap: 6px 10px; }
+  .bottomnav { left: 10px; right: 10px; padding: 5px 4px; border-radius: 24px; }
+  .bottomnav a { min-height: 44px; font-size: 10px; } .bottomnav a .pillbg { width: 42px; height: 26px; }
+  .morelist a { padding: 12px 14px; }
+  /* Dashboard */
+  .home-head h1 { font-size: 18px; line-height: 1.35; }
+  .home-head label.row { height: 38px !important; } .home-head select { height: 30px !important; }
+  .home-head #h-export { font-size: 0; width: 38px; padding: 0; gap: 0; }
+  .h-filt { gap: 6px; } .h-filt label.row { gap: 4px; } .h-filt select.inp { height: 34px !important; padding: 0 8px; font-size: 13px; }
+  .h-filt .seg-ctl.right { margin-left: 0; }
+  details > .hb-sum { display: flex; flex-direction: column; gap: 2px; cursor: pointer; list-style: none; } details > .hb-sum::-webkit-details-marker { display: none; }
+  #h-bd:not([open]) .hb-sum .faint::after { content: ' ›'; }
+}
+@media (max-width: 520px) {
+  /* KPI 3 ช่องต่อแถว: 5 ใบ = 3 + 2 • 4 ใบ = 2 + 2 */
+  .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .kpis > .kpi, .kpis > .kpi:first-child:nth-last-child(odd) { grid-column: span 2; }
+  .kpis > .kpi:nth-child(4):nth-last-child(2), .kpis > .kpi:nth-child(5):nth-last-child(1),
+  .kpis > .kpi:first-child:nth-last-child(4), .kpis > .kpi:first-child:nth-last-child(4) ~ .kpi { grid-column: span 3; }
+  .kpi .v { font-size: 20px; } .kpi .l, .kpi .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* ตัวกรองแบบพับได้ (มือถือ) — คอมพิวเตอร์แสดงตามเดิม */
+.only-m { display: none !important; }
+.filters .fx { display: contents; }
+@media (max-width: 860px) {
+  .only-m { display: inline-flex !important; }
+  .filters .search { flex: 1 1 0; min-width: 0; }
+  .filters:not(.open) .fx, .filters:not(.open) .right { display: none; }
+  .filters.open .fx { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+  .filters.open .fx select { flex: 1 1 calc(50% - 6px); min-width: 0; }
+  .filters .right { margin-left: 0; }
+}

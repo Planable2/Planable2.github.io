@@ -19,13 +19,14 @@ export function view(main, arg, app) {
   const late = yearPlans.filter((p) => p.late);
   const lateBy = {}; late.forEach((p) => (lateBy[p.unit] = (lateBy[p.unit] || 0) + 1));
 
+  const mobile = window.innerWidth <= 860;
   main.innerHTML = `
-  <div class="page-head">
+  <div class="page-head home-head">
     <div class="t"><span class="muted small">${isGuest() ? 'ยินดีต้อนรับ • โหมดผู้เยี่ยมชม' : 'สวัสดี, ' + esc(S.user.full_name) + ' • ' + TH_DOW[new Date().getDay()] + ' ' + thDate(new Date())}</span>
       <h1>ภาพรวมแผนทั้งเขต • ปีงบ ${ui.year}</h1></div>
     <label class="row small muted" style="background:var(--card);border:1px solid var(--line);border-radius:22px;padding:0 6px 0 14px;height:44px">ปีงบประมาณ
       <select id="h-year" class="inp" style="height:34px;width:auto;border:0;background:var(--green-soft);color:var(--green-ink);font-weight:600">${years.length ? years.map((y) => `<option value="${y}" ${y === ui.year ? 'selected' : ''}>${y}${y === fy ? ' (ปัจจุบัน)' : ''}</option>`).join('') : `<option>${fy}</option>`}</select></label>
-    <button class="btn" id="h-export">${icon('download', 16)}ส่งออก Excel</button>
+    <button class="btn" id="h-export" title="ส่งออก Excel" aria-label="ส่งออก Excel">${icon('download', 16)}ส่งออก Excel</button>
   </div>
   ${ui.year < fy ? `<div class="note grey">ปีงบ ${ui.year} ปิดแล้ว — ดูและส่งออกได้ แก้ไขได้เฉพาะผู้ดูแลระบบ</div>` : ''}
   ${!years.length ? `<div class="empty">ยังไม่มีแผนในทะเบียน — เริ่มจากหน้าทะเบียนแผน (ลงทะเบียน หรือ นำเข้าจาก Excel)</div>` : ''}
@@ -40,7 +41,7 @@ export function view(main, arg, app) {
     <section class="card col" style="gap:12px">
       <div class="row wrap"><h2 class="grow" style="margin:0">สถานะแผน • ${esc(ui.unit === 'all' ? 'ทั้งเขต' : ui.unit)}${ui.office === 'all' ? '' : ' • ' + esc(ui.office)}</h2>
         <div class="seg-ctl" id="h-type">${[['stack', 'แท่งแนวนอน'], ['col', 'แท่งแนวตั้ง'], ['donut', 'วงกลม'], ['prog', '% ส่งแล้ว']].map((t) => `<button data-v="${t[0]}" class="${ui.type === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div></div>
-      <div class="row wrap small">
+      <div class="row wrap small h-filt">
         <label class="row muted">หน่วยงาน <select class="inp" id="h-unit" style="height:38px;width:auto"><option value="all">ทั้งเขต</option>${units().map((u) => `<option ${u.name === ui.unit ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
         <label class="row muted">สำนัก <select class="inp" id="h-office" style="height:38px;width:auto"><option value="all">ทุกสำนัก</option>${offices().map((o) => `<option ${o.short === ui.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>
         <div class="seg-ctl right" id="h-measure">${[['count', 'จำนวนแผน'], ['budget', 'งบประมาณ']].map((t) => `<button data-v="${t[0]}" class="${ui.measure === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
@@ -50,7 +51,9 @@ export function view(main, arg, app) {
     </section>
     <aside class="col" style="gap:14px" id="h-side"></aside>
   </div>
-  <section class="card col" style="gap:14px" id="h-builder"></section>`;
+  ${mobile ? `<details class="card" id="h-bd" ${ui.bopen ? 'open' : ''}><summary class="hb-sum"><b>เปรียบเทียบทั้งเขต • สร้างกราฟเอง</b><span class="faint">แตะเพื่อเปิด</span></summary><section class="col" style="gap:14px;margin-top:12px" id="h-builder"></section></details>`
+    : '<section class="card col" style="gap:14px" id="h-builder"></section>'}`;
+  if ($('#h-bd')) $('#h-bd').ontoggle = () => (ui.bopen = $('#h-bd').open);
 
   // ----- กราฟหลัก -----
   const byUnit = ui.unit === 'all';

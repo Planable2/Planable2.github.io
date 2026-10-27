@@ -22,14 +22,17 @@ export function view(main, arg, app) {
   </div>
   ${ui.year < fy ? `<div class="note grey">ปีงบ ${ui.year} ปิดแล้ว — ดูและส่งออกได้ แก้ไขได้เฉพาะผู้ดูแลระบบ</div>` : ''}
   <section class="kpis" id="p-sum"></section>
-  <div class="filters">
+  <div class="filters ${ui.fopen ? 'open' : ''}" id="p-filt">
     <label class="search">${icon('search', 16)}<input id="p-q" value="${esc(ui.q)}" placeholder="ค้น ID / ชื่องาน / ทางหลวง / ตอน / จังหวัด เช่น 108" aria-label="ค้นหา"></label>
+    <button class="btn sm only-m" id="p-ftog" aria-expanded="${!!ui.fopen}">ตัวกรอง${nFilt() ? ` (${nFilt()})` : ''}</button>
+    <div class="fx">
     <select id="p-unit" aria-label="หน่วยงาน"><option value="all">ทุกหน่วยงาน</option>${units().map((u) => `<option ${u.name === ui.unit ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>
     <select id="p-office" aria-label="สำนัก"><option value="all">ทุกสำนัก</option>${offices().map((o) => `<option ${o.short === ui.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select>
     <select id="p-status" aria-label="สถานะ"><option value="all">ทุกสถานะ</option>${statuses().map((s) => `<option value="${s.status_code}" ${s.status_code === ui.status ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}<option value="fix" ${ui.status === 'fix' ? 'selected' : ''}>มีส่งกลับแก้ไข</option><option value="late" ${ui.status === 'late' ? 'selected' : ''}>เลยกำหนดรอบส่ง</option></select>
     <select id="p-kw" aria-label="สถานะแขวง"><option value="all">สถานะแขวง: ทั้งหมด</option>${KHWAENG_STAGES.map((s) => `<option ${s === ui.kw ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
     <select id="p-kh" aria-label="สถานะเขต"><option value="all">สถานะเขต: ทั้งหมด</option>${khetKeys().map((s) => `<option ${s === ui.kh ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
     <button class="btn sm" id="p-clear">ล้าง</button>
+    </div>
     <span class="right row"><button class="btn sm" id="p-cols">${icon('cols', 14)}เลือกคอลัมน์</button><button class="btn sm" id="p-ex">ขยายทั้งหมด</button><button class="btn sm" id="p-co">ย่อทั้งหมด</button></span>
   </div>
   <span class="small muted" id="p-count"></span>
@@ -38,7 +41,8 @@ export function view(main, arg, app) {
   draw();
   $('#p-year').onchange = (e) => { ui.year = Number(e.target.value); view(main, arg, app); };
   $('#p-q').oninput = debounce((e) => { ui.q = e.target.value; draw(); }, 200);
-  ['unit', 'office', 'status', 'kw', 'kh'].forEach((k) => ($('#p-' + k).onchange = (e) => { ui[k] = e.target.value; draw(); }));
+  ['unit', 'office', 'status', 'kw', 'kh'].forEach((k) => ($('#p-' + k).onchange = (e) => { ui[k] = e.target.value; $('#p-ftog').textContent = 'ตัวกรอง' + (nFilt() ? ` (${nFilt()})` : ''); draw(); }));
+  $('#p-ftog').onclick = () => { ui.fopen = !ui.fopen; $('#p-filt').classList.toggle('open', ui.fopen); $('#p-ftog').setAttribute('aria-expanded', ui.fopen); };
   $('#p-clear').onclick = () => { Object.assign(ui, { q: '', unit: 'all', office: 'all', status: 'all', kw: 'all', kh: 'all' }); view(main, arg, app); };
   $('#p-ex').onclick = () => { units().forEach((u) => (ui.open[u.name] = true)); draw(); };
   $('#p-co').onclick = () => { ui.open = {}; ui.forceClosed = true; draw(); };
@@ -49,6 +53,9 @@ export function view(main, arg, app) {
   if (arg === 'new' && can('edit_plan')) planForm(null, app);
   if (arg === 'import' && can('edit_plan')) importDialog(app);
 }
+
+/** จำนวนตัวกรองที่เลือกอยู่ (แสดงบนปุ่ม "ตัวกรอง" ในมือถือ) */
+const nFilt = () => ['unit', 'office', 'status', 'kw', 'kh'].filter((k) => ui[k] !== 'all').length;
 
 /** ตัวเลือกสถานะเขตตามลำดับขั้น (จากสถานะในตั้งค่า) */
 const khetKeys = () => ['รอแขวงส่ง', 'ระหว่างตรวจ', 'ส่งแก้ไข'].concat(statuses().filter((s) => s.dash_group !== 'ยังไม่ส่ง' && s.dash_group !== 'แขวงส่งแล้ว').map((s) => s.name));

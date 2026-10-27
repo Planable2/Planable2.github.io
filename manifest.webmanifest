@@ -1,6 +1,6 @@
 {
-  "name": "Planable",
-  "short_name": "Planable",
+  "name": "Planable2",
+  "short_name": "Planable2",
   "description": "ติดตามแผนงาน ปฏิทินประชุม คลังเอกสาร และงานสั่งการ",
   "lang": "th",
   "start_url": "./#/home",
@@ -15,8 +15,9 @@
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "ทะเบียนแผน", "url": "./#/plans" },
-    { "name": "ปฏิทินประชุม", "url": "./#/meetings" },
-    { "name": "งานสั่งการ", "url": "./#/orders" }
+    { "name": "ปฏิทิน", "url": "./#/meetings" },
+    { "name": "ราคาวัสดุ", "url": "./#/prices" },
+    { "name": "คลังเอกสาร", "url": "./#/files" },
+    { "name": "ทะเบียนแผน", "url": "./#/plans" }
   ]
 }
