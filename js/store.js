@@ -5,7 +5,7 @@ export const S = { user: null, perms: {}, cfg: {}, db: {}, ui: {} };
 
 export function load(data) {
   S.user = data.user; S.perms = data.perms || {}; S.cfg = data.cfg || {};
-  S.db = Object.assign({ Plans: [], Segments: [], StatusLog: [], Meetings: [], MeetingAttendees: [], Orders: [], OrderAssignees: [], Files: [], Users: [], Fuel: [], Leaves: [], MatDocs: [], MatPrices: [] }, data.db || {});
+  S.db = Object.assign({ Plans: [], Segments: [], StatusLog: [], Meetings: [], MeetingAttendees: [], Orders: [], OrderAssignees: [], Files: [], Users: [], Fuel: [], Leaves: [], Trips: [], MatDocs: [], MatPrices: [] }, data.db || {});
   cache = null;
 }
 let cache = null;
@@ -108,6 +108,10 @@ export function badgeInfo() {
   const up = S.db.Meetings.filter((m) => m.status !== 'cancelled' && m.date >= t);
   if (mode === 'none') return { mode, n: 0, label: '' };
   if (mode === 'files') return { mode, n: pendingFiles().length, label: 'เอกสารรอจัดหมวด' };
-  if (mode === 'trips') return { mode, n: new Set(up.filter(isOffsite).map((m) => m.date)).size, label: 'วันที่ต้องออกนอกสถานที่' };
+  if (mode === 'trips') {   // วันที่มีประชุมนอกสถานที่ หรือมีคนไปราชการ (นับวันที่ยังไม่ผ่าน)
+    const days = new Set(up.filter(isOffsite).map((m) => m.date));
+    (S.db.Trips || []).forEach((x) => { for (let d = new Date(x.date_from < t ? t : x.date_from), end = new Date(x.date_to); d <= end; d.setDate(d.getDate() + 1)) days.add(iso(d)); });
+    return { mode, n: days.size, label: 'วันที่ต้องออกนอกสถานที่ / ไปราชการ' };
+  }
   return { mode: 'meetings', n: up.filter((m) => attendeesOf(m.meeting_id).includes(me)).length, label: 'ประชุม/กิจกรรมที่ต้องเข้า' };
 }

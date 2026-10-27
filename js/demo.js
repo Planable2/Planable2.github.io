@@ -156,7 +156,15 @@ function seed() {
   const CONC = [['180 กก./ตร.ซม. และรูปทรงกระบอก 140 กก./ตร.ซม.', 1985.98], ['210 กก./ตร.ซม. และรูปทรงกระบอก 180 กก./ตร.ซม.', 2032.71], ['240 กก./ตร.ซม. และรูปทรงกระบอก 210 กก./ตร.ซม.', 2079.44]];
   doc('concrete', 'พาณิชย์จังหวัด', ym(-1), { note: 'ไม่รวม VAT' }, PV.flatMap((a, i) => ['ตรานกอินทรี', 'ตรา ทีพีไอ'].flatMap((b, j) => CONC.map(([s, p]) => ({ item: `คอนกรีตผสมเสร็จรูปลูกบาศก์ ${s} ${b}`, area: a, price: +(p - j * 160 + i * 25).toFixed(2), unit: 'ลบ.ม.' })))));
   doc('cement', 'พาณิชย์จังหวัด', ym(-1), { note: 'ไม่รวม VAT' }, PV.flatMap((a, i) => [['ปูนซีเมนต์ปอร์ตแลนด์ ประเภท 1 ตราช้าง', 152], ['ปูนซีเมนต์ผสม ตราเสือ', 128]].map(([item, p]) => ({ item, area: a, price: p + i * 2, unit: 'ถุง' }))));
-  return { cfg, db: { Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel, Leaves, MatDocs, MatPrices }, sessions: {} };
+  const STEEL = [['เหล็กเส้นกลมผิวเรียบ SR.24 มอก. 20-2559 ขนาดเส้นผ่านศูนย์กลาง 6 มม. ยาว 10 เมตร', 20200], ['เหล็กเส้นกลมผิวเรียบ SR.24 มอก. 20-2559 ขนาดเส้นผ่านศูนย์กลาง 9 มม. ยาว 10 เมตร', 19450], ['เหล็กเส้นกลมข้ออ้อย SD.40 มอก. 24-2559 ขนาดเส้นผ่านศูนย์กลาง 12 มม. ยาว 10 เมตร', 19300], ['เหล็กเส้นกลมข้ออ้อย SD.40 มอก. 24-2559 ขนาดเส้นผ่านศูนย์กลาง 16 มม. ยาว 10 เมตร', 19100]];
+  doc('steel', 'พาณิชย์จังหวัด', ym(-1), { note: 'ไม่รวม VAT • กรุงเทพฯ = ราคาส่วนกลาง' }, ['กรุงเทพฯ'].concat(PV).flatMap((a, i) => STEEL.map(([item, p]) => ({ item, area: a, price: i ? +(p * (1.12 + i * 0.02)).toFixed(2) : p, unit: 'ตัน' }))));
+  const DIA = ['0.30', '0.40', '0.60', '0.80', '1.00', '1.20', '1.50'];
+  const pipe = (unit, rows) => doc('pipe', unit, ym(-1), { doc_no: 'ข้อมูลราคาและแหล่งวัสดุ สทล.2', note: 'ราคา ณ แหล่ง บาท/ม. • ไม่รวม VAT 7% • ไม่รวมค่าขนส่ง' }, rows.flatMap(([f, loc, c2, c3]) => DIA.map((d, i) => ({ item: f, area: d, price: c2[i] ?? '', price2: c3[i] ?? '', unit: loc })).filter((r) => r.price !== '' || r.price2 !== '')));
+  pipe('แขวง 1', [['โรงหล่อท่อ หจก.โชคจรรคอนกรีต', 'ทล.101 กม.231+800 LT • ต.แม่จั๊วะ อ.เด่นชัย จ.แพร่ • 17.99375, 100.09818', [null, 611, 845, 1430, 2730, 3705], [null, 470, 650, 1100, 2100, 2850]],
+    ['โรงหล่อท่อ หจก.โกศัยคอนกรีต', 'ทล.129 กม.2+100 LT • ต.นาจักร อ.เมือง จ.แพร่ • 18.120443, 100.15543', [null, 732, 1224, 2280, 3144, 5100], [null, 576, 972, 1800, 2520, 4080]]]);
+  pipe('แขวง 3', [['โรงหล่อท่อ บจก.ทรัพย์แสงดาว', 'ทล.101 กม.357+755 RT • ต.ดู่ใต้ อ.เมือง จ.น่าน • 18.703817, 100.74942', [null, 900, 1350, 2450, 3500, 5600, 8500], [null, 780, 1180, 1950, 2750, 4500, 7200]]]);
+  const Trips = [{ trip_id: 'TR-0001', date_from: d(1), date_to: d(2), title: 'ตรวจสอบแผนงานร่วมกับแขวง', place: 'แขวงทางหลวงน่านที่ 1', members: 'P03,P04', note: 'รถราชการ', created_by: 'P03', created_at: nowIso() }];
+  return { cfg, db: { Trips, Plans, Segments, StatusLog, Meetings, MeetingAttendees, Orders: OrdersRows, OrderAssignees, Files, Users, Fuel, Leaves, MatDocs, MatPrices }, sessions: {} };
 }
 
 let DB = null;
@@ -324,17 +332,27 @@ const ACTIONS = {
     d.source = String(d.source || '').trim();
     if (!d.source) throw new Error('กรุณาระบุแหล่งราคา');
     if (AUTO.includes(d.source)) throw new Error(`"${d.source}" ระบบดึงให้อัตโนมัติ — ใช้ชื่อแหล่งอื่น`);
-    if (!d.period) throw new Error(d.kind === 'asphalt' ? 'กรุณาเลือกเดือน' : 'กรุณาเลือกวันที่ออกราคา');
+    if (!d.period) throw new Error(d.kind !== 'quarry' ? 'กรุณาเลือกเดือน' : 'กรุณาเลือกวันที่ออกราคา');
     const has = (v) => v !== '' && v !== null && v !== undefined;
-    const rows = (p.prices || []).filter((x) => x.item && (has(x.price) || has(x.price2))).map((x) => ({ item: x.item, area: x.area || '-', price: has(x.price) ? Number(x.price) : '', price2: has(x.price2) ? Number(x.price2) : '', unit: '' }));
+    const rows = (p.prices || []).filter((x) => x.item && (has(x.price) || has(x.price2))).map((x) => ({ item: x.item, area: x.area || '-', price: has(x.price) ? Number(x.price) : '', price2: has(x.price2) ? Number(x.price2) : '', unit: String(x.unit || '').trim() }));
     if (!rows.length) throw new Error('กรุณากรอกราคาอย่างน้อย 1 รายการ');
     const dup = D.MatDocs.find((x) => x.kind === d.kind && x.source === d.source && x.period === d.period);
-    if (dup && dup.doc_id !== d.doc_id) throw new Error(`มีราคาของ ${d.source} ${d.kind === 'asphalt' ? 'เดือน' : 'วันที่'}นี้แล้ว — กดแก้ไขแทน`);
+    if (dup && dup.doc_id !== d.doc_id) throw new Error(`มีราคาของ ${d.source} ${d.kind !== 'quarry' ? 'เดือน' : 'วันที่'}นี้แล้ว — กดแก้ไขแทน`);
     if (!d.doc_id) { d.doc_id = nextId(D.MatDocs, 'doc_id', 'MD-'); d.created_by = u.user_id; d.created_at = nowIso(); }
     const saved = upsert(D.MatDocs, 'doc_id', d);
     D.MatPrices = D.MatPrices.filter((x) => x.doc_id !== d.doc_id).concat(rows.map((r) => Object.assign({ doc_id: d.doc_id }, r)));
     persist(); return { doc: saved, prices: D.MatPrices.filter((x) => x.doc_id === d.doc_id) };
   },
+  saveTrip: (p, u) => {
+    const D = db().db, x = Object.assign({}, p.trip); D.Trips = D.Trips || [];
+    if (!String(x.title || '').trim()) throw new Error('กรุณาใส่เรื่อง / ภารกิจ');
+    if (!x.date_from || !x.date_to) throw new Error('กรุณาเลือกวันที่');
+    if (x.date_to < x.date_from) throw new Error('วันที่กลับต้องไม่ก่อนวันที่ไป');
+    if (!String(x.members || '').trim()) throw new Error('เลือกผู้เดินทางอย่างน้อย 1 คน');
+    if (!x.trip_id) { x.trip_id = nextId(D.Trips, 'trip_id', 'TR-'); x.created_by = u.user_id; x.created_at = nowIso(); }
+    const saved = upsert(D.Trips, 'trip_id', x); persist(); return { trip: saved };
+  },
+  deleteTrip: (p) => { const D = db().db; D.Trips = (D.Trips || []).filter((x) => x.trip_id !== p.trip_id); persist(); return { trip_id: p.trip_id }; },
   deleteMatDoc: (p, u) => {
     need(u, 'edit_price', 'บทบาทของคุณกรอกราคาวัสดุไม่ได้');
     const D = db().db, x = D.MatDocs.find((y) => y.doc_id === p.doc_id);

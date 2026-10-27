@@ -20,7 +20,7 @@ export function view(main, arg, app) {
   Object.values(byDay).forEach((l) => l.sort((a, b) => (a.start > b.start ? 1 : -1)));
   const weeks = days[35].getMonth() !== ui.m ? 5 : 6;
   main.innerHTML = `${calTabs('meetings')}
-  <div class="page-head"><div class="t"><h1>${TH_MONTH_FULL[ui.m]} ${ui.y + 543}</h1><span class="muted small">ประชุม • กิจกรรม • ตรวจรับงาน — แจ้งกลุ่ม LINE อัตโนมัติเมื่อเพิ่ม/เลื่อน/ยกเลิก</span></div>
+  <div class="page-head"><div class="t"><h1>${TH_MONTH_FULL[ui.m]} ${ui.y + 543}</h1><span class="muted small">ประชุม • อบรม • กิจกรรม • ตรวจรับงาน — แจ้งกลุ่ม LINE อัตโนมัติเมื่อเพิ่ม/เลื่อน/ยกเลิก</span></div>
     <div class="row"><button class="icon-btn" id="mt-prev" aria-label="เดือนก่อน">${icon('back')}</button><button class="btn sm" id="mt-today">วันนี้</button><button class="icon-btn" id="mt-next" aria-label="เดือนถัดไป">${icon('chev')}</button></div>
     ${can('manage_meeting') ? `<button class="btn pri" id="mt-add">${icon('plus', 16)}เพิ่มประชุม</button>` : ''}</div>
   <div class="legend">${kinds().map((k) => `<span><i style="background:${esc(k.color)}"></i>${esc(k.name)}</span>`).join('')}</div>

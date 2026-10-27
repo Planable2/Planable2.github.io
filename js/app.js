@@ -9,6 +9,7 @@ import * as Home from './views/home.js';
 import * as Plans from './views/plans.js';
 import * as Meetings from './views/meetings.js';
 import * as Leaves from './views/leaves.js';
+import * as Trips from './views/trips.js';
 import * as Orders from './views/orders.js';
 import * as Files from './views/files.js';
 import * as People from './views/people.js';
@@ -22,7 +23,8 @@ const ROUTES = {
   plans: { mod: Plans, title: 'ทะเบียนแผน', nav: 'plans' },
   plan: { mod: Plans, fn: 'detail', title: 'รายละเอียดแผน', nav: 'plans' },
   check: { mod: Check, title: 'ตรวจแผน', nav: 'check' },
-  meetings: { mod: Meetings, title: 'ปฏิทินประชุม', nav: 'meetings' },
+  meetings: { mod: Meetings, title: 'ปฏิทินประชุม/อบรม', nav: 'meetings' },
+  trips: { mod: Trips, title: 'ปฏิทินไปราชการ', nav: 'meetings' },
   leaves: { mod: Leaves, title: 'ปฏิทินวันลา', nav: 'meetings' },
   orders: { mod: Orders, title: 'งานสั่งการ', nav: 'orders' },
   files: { mod: Files, title: 'คลังเอกสาร', nav: 'files' },
@@ -118,7 +120,7 @@ function menu() {
     { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(can('edit_plan') ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
     { k: 'check', label: 'ตรวจแผน', href: 'check', cols: [['ตรวจแผน', 'big', [['คำนวณ Factor F', 'check/factor'], ['ค่าดำเนินการและค่าเสื่อมราคา', 'check/op'], ['ค่าขนส่ง', 'check/transport']]]] },
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },
-    { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', badge: calBadge(), cols: [['ปฏิทิน', 'big', [['ประชุม', 'meetings'], ['วันลา', 'leaves']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new']]]] },
+    { k: 'meetings', label: 'ปฏิทิน', href: 'meetings', badge: calBadge(), cols: [['ปฏิทิน', 'big', [['ประชุม/อบรม', 'meetings'], ['วันลา', 'leaves'], ['ไปราชการ', 'trips']]], ['ทางลัด', 'sm', [...(can('manage_meeting') ? [['เพิ่มประชุม/อบรม', 'meetings/new']] : []), ['ลงวันลา', 'leaves/new'], ['ลงไปราชการ', 'trips/new']]]] },
     { k: 'files', label: 'คลังเอกสาร', href: 'files', badge: f, cols: [['คลังเอกสาร', 'big', [['รอจัดหมวด', 'files'], ['เอกสารทั้งหมด', 'files/all']]]] },
     { k: 'prices', label: 'ราคาวัสดุ', href: 'prices', cols: [['ราคาวัสดุ', 'big', [['น้ำมัน', 'prices/fuel'], ['ยางแอสฟัลต์', 'prices/asphalt'], ['วัสดุจากแหล่ง', 'prices/quarry'], ['คอนกรีต / ปูนซีเมนต์', 'prices/concrete']]]] },
     { k: 'people', label: 'บุคลากร', href: 'people', badge: pu, cols: [['บุคลากร', 'big', [['โครงสร้างส่วน', 'people'], ['โปรไฟล์ของฉัน', 'profile']]]] }

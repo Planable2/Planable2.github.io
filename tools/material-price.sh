@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ดึงราคาวัสดุจากกระทรวงพาณิชย์ (index-api.tpso.go.th) แล้วส่งเข้าระบบ (matIngest) — เรียกจาก .github/workflows/material-price.yml
 #   ยางมะตอย = ราคากรุงเทพฯ (ส่วนกลาง) • คอนกรีตผสมเสร็จ / ปูนซีเมนต์ = พาณิชย์จังหวัด (จังหวัดของหน่วยงานในตั้งค่า › หน่วยงาน)
+#   เหล็กเส้น (SR24 กลม / SD ข้ออ้อย รหัส 040101/040102) = พาณิชย์จังหวัด + กรุงเทพฯ (ส่วนกลาง)
 #   แต่ละจังหวัดประกาศไม่พร้อมกัน → ย้อนทีละเดือนจนเจอเดือนล่าสุดของทุกจังหวัด (อย่างน้อย 6 เดือน)
 #   MONTHS = ดึงอย่างน้อยกี่เดือน • ว่าง = อัตโนมัติ (ยังไม่เคยดึง → 6 เดือน, ปกติ → 1)
 #   ราคาไม่รวม VAT • ไฟล์จากพาณิชย์ ~8MB/เดือน ใช้เวลาราว 1–2 นาทีต่อเดือน
@@ -34,7 +35,10 @@ for ((i = 0; i < LIMIT; i++)); do
       { kind: "concrete", source: "พาณิชย์จังหวัด", period: $period, note: "ไม่รวม VAT",
         prices: [ .[] | select(.priceCur != null and inprov and (nm | startswith("คอนกรีตผสมเสร็จ"))) | {item: nm, area: .typeName, price: .priceCur, unit: .unitName} ] },
       { kind: "cement", source: "พาณิชย์จังหวัด", period: $period, note: "ไม่รวม VAT",
-        prices: [ .[] | select(.priceCur != null and inprov and (code | (startswith("1501") or startswith("1502")))) | {item: nm, area: .typeName, price: .priceCur, unit: .unitName} ] }
+        prices: [ .[] | select(.priceCur != null and inprov and (code | (startswith("1501") or startswith("1502")))) | {item: nm, area: .typeName, price: .priceCur, unit: .unitName} ] },
+      { kind: "steel", source: "พาณิชย์จังหวัด", period: $period, note: "ไม่รวม VAT • กรุงเทพฯ = ราคาส่วนกลาง",
+        prices: [ .[] | select(.priceCur != null and (code | (startswith("040101") or startswith("040102"))) and (.type == "10" or inprov))
+                  | {item: nm, area: (if .type == "10" then "กรุงเทพฯ" else .typeName end), price: .priceCur, unit: .unitName} ] }
     ] | map(select(.prices | length > 0)) end' month.json 2>/dev/null || echo '[]')
   GOT=$(echo "$ADD" | jq -c '[.[] | if .kind == "asphalt" then "กรุงเทพฯ" else .prices[].area end] | unique')
   echo "  ได้ $(echo "$ADD" | jq '[.[].prices | length] | add // 0') รายการ • มีราคา: $GOT"

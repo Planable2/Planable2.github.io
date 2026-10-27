@@ -268,3 +268,11 @@ details.card > summary { cursor: pointer; list-style: revert; }
 .trv { font-family: var(--head); font-size: 26px; font-weight: 500; color: var(--green-ink); font-variant-numeric: tabular-nums; }
 .trtbl td, .trtbl th { padding: 4px 8px; } .trtbl td:nth-child(3n) { border-right: 1px solid var(--line); }
 .trtbl td.tron { background: var(--gold-soft) !important; color: var(--gold-ink); font-weight: 700; }
+
+/* ---------- ราคาวัสดุ: ท่อ / หินผสมแอสฟัลต์ • ตรวจแผน: ราคาวัสดุที่หน้างาน ---------- */
+.pipetbl .pc3 { border-left: 2px solid var(--line); }
+.mixrow td { background: var(--green-soft); }
+.trmtbl td, .trmtbl th { padding: 5px 4px; vertical-align: middle; } .trmtbl th { white-space: normal; line-height: 1.25; }
+.trmtbl .inp { height: 32px; font-size: 13px; padding: 0 6px; border-radius: 10px; }
+.trmtbl .trm-d { width: 58px; } .trmtbl .trm-p { width: 92px; } .trmtbl .trm-t { min-width: 140px; }
+.trmtbl .trm-site { font-family: var(--head); font-size: 16px; font-weight: 500; color: var(--green-ink); }
