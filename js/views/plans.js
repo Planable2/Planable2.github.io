@@ -218,7 +218,7 @@ const newSeg = () => ({ road: '', control: '', section: '', from: '', to: '', si
 function planForm(plan, app) {
   const isNew = !plan;
   const f = plan ? { ...plan, segs: plan.segs.map((s) => ({ road: s.road, control: s.control || '', section: s.section || '', from: kmText(s.km_from_m), to: Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '', side: s.side, parallel: s.parallel || '' })) }
-    : { fiscal_year: ui.year || currentFY(), unit: units()[1] ? units()[1].name : '', office: offices()[0] ? offices()[0].short : '', id_code: '', work_code: '', work_name: '', activity: '', province: '', sthl: '', budget: '', note: '', segs: [newSeg()] };
+    : { fiscal_year: ui.year || currentFY(), unit: units()[1] ? units()[1].name : '', office: offices()[0] ? offices()[0].short : '', id_code: '', work_code: '', work_name: '', activity: '', province: (unitOf(units()[1] ? units()[1].name : '').province || ''), sthl: '', budget: '', note: '', segs: [newSeg()] };
   if (!f.segs.length) f.segs.push(newSeg());
   const offOpts = (u) => offices().filter((o) => (unitOf(u).kind === 'เขต' ? o.scope !== 'เฉพาะแขวง' : o.scope !== 'เฉพาะเขต'));
   const acts = [...new Set(plans().map((p) => p.activity).filter(Boolean))].sort();
@@ -259,7 +259,7 @@ function planForm(plan, app) {
     <div class="row wrap small"><span class="tag">ผู้ตรวจ: ${esc((userOf(unitOf(f.unit).reviewer_id) || {}).full_name || '—')}</span><span class="tag">${isNew ? 'สถานะเริ่มต้น' : 'สถานะ'}: ${esc(statusOf(isNew ? (unitOf(f.unit).kind === 'เขต' ? 's0' : 's1') : plan.status).name)}</span></div>
     <span class="err" id="pf-err"></span>
     <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="pf-save">บันทึกแผน</button></div>`;
-    $$('[data-k]', dlg).forEach((el) => (el.onchange = el.oninput = () => { f[el.dataset.k] = el.value; if (el.dataset.k === 'unit' && el.tagName === 'SELECT') { const o = offOpts(f.unit); if (!o.some((x) => x.short === f.office)) f.office = o[0] ? o[0].short : ''; if (!f.province) f.province = unitOf(f.unit).province || ''; draw(dlg); } }));
+    $$('[data-k]', dlg).forEach((el) => (el.onchange = el.oninput = () => { f[el.dataset.k] = el.value; if (el.dataset.k === 'unit' && el.tagName === 'SELECT') { const o = offOpts(f.unit); if (!o.some((x) => x.short === f.office)) f.office = o[0] ? o[0].short : ''; if (!f.province || units().some((u) => u.province === f.province)) f.province = unitOf(f.unit).province || f.province; draw(dlg); } }));
     $$('[data-seg]', dlg).forEach((r) => $$('[data-s]', r).forEach((el) => (el.oninput = el.onchange = () => (f.segs[r.dataset.seg][el.dataset.s] = el.value))));
     on(dlg, '[data-rm]', 'click', (e, b) => { f.segs.splice(Number(b.dataset.rm), 1); draw(dlg); });
     $('#pf-add', dlg).onclick = () => { const l = f.segs[f.segs.length - 1] || {}; f.segs.push({ ...newSeg(), road: l.road || '', control: l.control || '', section: l.section || '' }); draw(dlg); };

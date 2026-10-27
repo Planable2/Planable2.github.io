@@ -1,5 +1,5 @@
 // Service Worker: เก็บไฟล์หน้าเว็บไว้ในเครื่อง เปิดเร็ว/ติดตั้งเป็นแอปได้ • ข้อมูลจาก API ไม่เก็บ (ดึงสดทุกครั้ง)
-const VERSION = 'plan-app-v1.12.0';   // เปลี่ยนเลขนี้ทุกครั้งที่อัปเดตไฟล์บน GitHub Pages (แอปจะโหลดเวอร์ชันใหม่ให้เอง)
+const VERSION = 'plan-app-v1.12.1';   // เปลี่ยนเลขนี้ทุกครั้งที่อัปเดตไฟล์บน GitHub Pages (แอปจะโหลดเวอร์ชันใหม่ให้เอง)
 const SHELL = [
   './', './index.html', './manifest.webmanifest', './css/app.css',
   './js/app.js', './js/config.js', './js/api.js', './js/demo.js', './js/store.js', './js/util.js', './js/ui.js', './js/charts.js', './js/mappick.js',

@@ -136,7 +136,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tbl td { padding: 10px; border-top: 1px solid var(--line2); vertical-align: top; }
 .tbl tr:hover td { background: var(--soft); }
 .tbl .r { text-align: right; }
-.scroll-x { overflow-x: auto; }
+.scroll-x, .card.flush.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }   /* การ์ด flush ตั้ง overflow:hidden — ตารางกว้างต้องเลื่อนได้เสมอ */
 
 /* ---------- กราฟ ---------- */
 .chart { position: relative; }

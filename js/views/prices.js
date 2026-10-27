@@ -118,8 +118,11 @@ function concrete(main, app, head) {
 
 /* ---------- ฟอร์มกรอกราคา (ใบสืบยาง / ออกราคาวัสดุจากแหล่ง) ---------- */
 function docForm(kind, doc, period, main, app) {
-  const isA = kind === 'asphalt', provs = provinces(), old = doc ? pricesOf(doc.doc_id) : [];
-  const f = doc ? { ...doc } : { source: isA ? 'Tipco' : 'สทล.2', period: isA ? period : iso(today()), doc_no: '', doc_date: iso(today()), note: '', file_url: '' };
+  const isA = kind === 'asphalt', provs = provinces();
+  // ออกราคาวัสดุจากแหล่งชุดใหม่: เริ่มจากราคาชุดล่าสุด (ชุดใหม่แทนที่ทั้งชุด — ถ้าเริ่มว่างจะทำให้รายการอื่นหายจากราคาปัจจุบัน)
+  const last = !doc && !isA ? docsOf(kind).filter((d) => d.period <= iso(today())).sort(by('period')).pop() : null;
+  const old = doc ? pricesOf(doc.doc_id) : last ? pricesOf(last.doc_id) : [];
+  const f = doc ? { ...doc } : { source: isA ? 'Tipco' : last ? last.source : 'สทล.2', period: isA ? period : iso(today()), doc_no: '', doc_date: iso(today()), note: last ? last.note || '' : '', file_url: '' };
   const val = {}; old.forEach((r) => (val[r.item + '|' + r.area] = r));
   const v = (n, a, k) => { const r = val[n + '|' + a]; return r && num(r[k]) ? r[k] : ''; };
   const names = uniq(items(kind).map((i) => i.name).concat(old.map((r) => r.item))).filter((n) => isA || normName(n) !== normName(MIX_NAME));
@@ -127,7 +130,7 @@ function docForm(kind, doc, period, main, app) {
   const inp = (n, a, k, w) => `<td><input class="inp num" style="height:36px;min-width:${w}px" data-n="${esc(n)}" data-a="${esc(a)}" data-k="${k}" value="${esc(v(n, a, k))}" inputmode="decimal"></td>`;
   const bo = bulkOnly();
   const row = (n) => `<tr><td><b>${esc(n)}</b></td>${isA ? inp(n, '-', 'price', 110) + (bo.has(n) ? '<td></td>' : inp(n, '-', 'price2', 110)) : provs.map((a) => inp(n, a, 'price', 90)).join('')}</tr>`;
-  modal(`${modalHead(doc ? 'แก้ไขราคา ' + doc.source : isA ? 'กรอกราคายางจากใบสืบ' : 'ออกราคาวัสดุจากแหล่ง', isA ? 'ไม่รวม VAT • Bulk = บาท/ตัน • ช่องว่าง = ไม่มีราคา' : 'มีผลตั้งแต่วันที่ออกราคา จนกว่าจะออกราคาใหม่ • ช่องว่าง = ไม่มีราคา')}
+  modal(`${modalHead(doc ? 'แก้ไขราคา ' + doc.source : isA ? 'กรอกราคายางจากใบสืบ' : 'ออกราคาวัสดุจากแหล่ง', isA ? 'ไม่รวม VAT • Bulk = บาท/ตัน • ช่องว่าง = ไม่มีราคา' : 'มีผลตั้งแต่วันที่ออกราคา จนกว่าจะออกราคาใหม่ • ช่องว่าง = ไม่มีราคา' + (last ? ` • เริ่มจากราคาที่ออกเมื่อ ${thDate(last.period)} แก้เฉพาะที่เปลี่ยน` : ''))}
     <div class="fgrid">
       <label class="f">${isA ? 'บริษัท / แหล่งราคา *' : 'แหล่งราคา *'}<select class="inp" id="md-srcsel">${srcs.map((s) => `<option ${s === f.source ? 'selected' : ''}>${esc(s)}</option>`).join('')}<option value="__new">+ เพิ่ม${isA ? 'บริษัท' : 'แหล่ง'}ใหม่…</option></select></label>
       <label class="f" id="md-srcnew" style="display:none">ชื่อ${isA ? 'บริษัท' : 'แหล่ง'}ใหม่ *<input class="inp" id="md-src" placeholder="${isA ? 'เช่น Shell, ESSO, บจก. …' : 'เช่น สทล.2'}"></label>
@@ -272,7 +275,10 @@ function pipe(main, app, head) {
 function pipeForm(doc, month, main, app) {
   const us = uniq(pipeUnits().concat(doc ? [doc.source] : []));
   const f = doc ? { ...doc } : { source: us[0] || '', period: month, doc_no: '', note: 'ไม่รวม VAT 7% • ไม่รวมค่าขนส่ง', file_url: '' };
-  let rows = doc ? pipeData(doc).map((x) => ({ name: x.name, loc: x.loc, c2: { ...x.c2 }, c3: { ...x.c3 } })) : [];
+  const copy = (d) => (d ? pipeData(d).map((x) => ({ name: x.name, loc: x.loc, c2: { ...x.c2 }, c3: { ...x.c3 } })) : []);
+  /** กรอกเดือนใหม่: เริ่มจากราคาเดือนล่าสุดของแขวงนั้น (แก้เฉพาะที่เปลี่ยน) */
+  const latestOf = (s) => docsOf('pipe').filter((d) => d.source === s && d.period <= f.period).sort(by('period')).pop();
+  let rows = copy(doc || latestOf(f.source));
   if (!rows.length) rows.push({ name: '', loc: '', c2: {}, c3: {} });
   const v = (x) => (num(x) ? x : '');
   const rowHtml = (r, i) => `<tr data-r="${i}"><td><input class="inp" data-f="name" value="${esc(r.name)}" placeholder="ชื่อโรงงาน" style="min-width:190px;height:36px"><input class="inp" data-f="loc" value="${esc(r.loc)}" placeholder="ที่ตั้ง / กม. / พิกัด" style="min-width:190px;height:32px;margin-top:4px;font-size:12px"></td>
@@ -295,6 +301,8 @@ function pipeForm(doc, month, main, app) {
   const sync = () => $$('#pf-rows tr').forEach((tr) => { const r = rows[tr.dataset.r]; $$('[data-f]', tr).forEach((el) => (r[el.dataset.f] = el.value.trim())); $$('[data-k]', tr).forEach((el) => (r[el.dataset.k][el.dataset.d] = el.value.replace(/,/g, '').trim())); });
   const draw = () => { $('#pf-rows').innerHTML = rows.map(rowHtml).join(''); on($('#pf-rows'), '[data-rm]', 'click', (e, b) => { sync(); rows.splice(Number(b.dataset.rm), 1); if (!rows.length) rows.push({ name: '', loc: '', c2: {}, c3: {} }); draw(); }); };
   draw();
+  if (!doc) $('#pf-src').onchange = (e) => { f.source = e.target.value; rows = copy(latestOf(f.source)); if (!rows.length) rows.push({ name: '', loc: '', c2: {}, c3: {} }); draw(); const l = latestOf(f.source); $('#pf-msg').textContent = l ? `เริ่มจากราคาเดือน ${thMonth(l.period)} ของแขวงนี้ — แก้เฉพาะที่เปลี่ยน` : ''; };
+  if (!doc && latestOf(f.source)) $('#pf-msg').textContent = `เริ่มจากราคาเดือน ${thMonth(latestOf(f.source).period)} ของแขวงนี้ — แก้เฉพาะที่เปลี่ยน`;
   $('#pf-addrow').onclick = () => { sync(); rows.push({ name: '', loc: '', c2: {}, c3: {} }); draw(); };
   $('#pf-tpl').onclick = async () => {
     try { await loadXLSX(); } catch (x) { return toast(x.message, 'err'); }
@@ -326,6 +334,8 @@ function pipeForm(doc, month, main, app) {
       }
     }
     if (!prices.length) return err('กรุณากรอกราคาอย่างน้อย 1 ช่อง');
+    const names = rows.filter((r) => r.name).map((r) => r.name.trim()), dupName = names.find((n, i) => names.indexOf(n) !== i);
+    if (dupName) return err(`ชื่อโรงงาน "${dupName}" ซ้ำกัน — รวมเป็นแถวเดียวหรือเติมชื่อให้ต่างกัน`);
     const d = { kind: 'pipe', source: $('#pf-src').value, period: $('#pf-per').value, doc_no: $('#pf-no').value.trim(), doc_date: '', file_url: $('#pf-url').value.trim(), note: $('#pf-note').value.trim() };
     if (doc) d.doc_id = doc.doc_id;
     const b = e.currentTarget; busy(b);
