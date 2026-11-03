@@ -572,8 +572,8 @@ export function detail(main, id, app) {
   const ST = statuses().filter((s) => s.scope === 'ทั้งหมด' || (p.isKhet ? s.scope !== 'แผนของแขวง' : s.scope !== 'แผนของเขต'));
   const curIdx = ST.findIndex((s) => s.status_code === p.status);
   const reached = new Set(p.logs.map((l) => l.to_status).concat([p.status]));
-  const rev = userOf(p.reviewer), me = S.user.user_id;
-  const mayUpdate = can('update_status') && (p.reviewer === me || isAdmin() || ['หัวหน้า', 'ธุรการ'].includes(S.user.role));
+  const rev = userOf(p.reviewer);
+  const mayUpdate = can('view_internal');   // บุคลากรภายในทุกคนอัปเดตสถานะได้
   const files = S.db.Files.filter((f) => f.link_type === 'plan' && f.link_id === p.plan_id);
   main.innerHTML = `
   <a href="#/plans" class="small row" style="gap:4px">${icon('back', 16)}ทะเบียนแผน › ${esc(p.unit)} › ${esc(p.office)} • ปีงบ ${p.fiscal_year}</a>
@@ -594,10 +594,10 @@ export function detail(main, id, app) {
       <section class="card col" style="gap:10px"><h2 style="margin:0">ประวัติการเปลี่ยนสถานะ</h2>${p.logs.length ? p.logs.slice().reverse().map((l) => `<div class="row" style="align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:${esc(statusOf(l.to_status).color)};margin-top:6px;flex-shrink:0"></span><div class="col grow" style="gap:2px"><div class="row"><b class="small grow">${esc(statusOf(l.to_status).name)}</b><span class="faint">${thDateTime(l.at)}</span></div><span class="faint">${esc((userOf(l.by_user) || {}).full_name || l.by_user || '')}</span>${l.reason ? `<span class="small" style="background:var(--gold-soft);color:var(--gold-ink);border-radius:12px;padding:6px 10px;align-self:flex-start">รอบที่ ${esc(l.round_no || '')}: ${esc(l.reason)}</span>` : ''}</div></div>`).join('') : '<span class="faint">ยังไม่มีการเปลี่ยนสถานะ</span>'}</section>
     </div>
     <div class="col" style="gap:14px">
-      <section class="card col" style="background:var(--green);color:#FFFEFB;gap:12px"><div class="row"><h2 class="grow" style="margin:0">อัปเดตสถานะ</h2><span class="small" style="color:#C7CDB8">${mayUpdate ? 'คุณอัปเดตได้' : 'เฉพาะผู้ตรวจของ ' + esc(p.unit)}</span></div>
+      <section class="card col" style="background:var(--green);color:#FFFEFB;gap:12px"><div class="row"><h2 class="grow" style="margin:0">อัปเดตสถานะ</h2><span class="small" style="color:#C7CDB8">${mayUpdate ? 'ทุกคนอัปเดตได้ • บันทึกชื่อผู้เปลี่ยน' : 'ผู้เยี่ยมชมดูได้อย่างเดียว'}</span></div>
         ${mayUpdate ? `<div class="row wrap">${ST.filter((s) => s.status_code !== p.status).map((s) => `<button class="btn sm" data-to="${esc(s.status_code)}" style="background:transparent;color:#FFFEFB;border-color:#7C8C76">${esc(s.name)}</button>`).join('')}</div>
         <label class="f" style="color:#DCE0CF">เหตุผล / หมายเหตุ <span id="pd-need"></span><textarea class="inp" id="pd-reason" style="background:#566A51;color:#fff;border-color:#687A62" placeholder="บังคับเมื่อส่งกลับแก้ไข"></textarea></label>
-        <span class="err" id="pd-err" style="color:#F4C9B8"></span><button class="btn" id="pd-go" style="background:var(--gold);border-color:var(--gold);color:#3E4F3B;font-weight:600" disabled>เลือกสถานะก่อน</button>` : '<span class="small" style="color:#DCE0CF">การเปลี่ยนสถานะทำโดยผู้ตรวจที่รับผิดชอบหน่วยงานนี้</span>'}
+        <span class="err" id="pd-err" style="color:#F4C9B8"></span><button class="btn" id="pd-go" style="background:var(--gold);border-color:var(--gold);color:#3E4F3B;font-weight:600" disabled>เลือกสถานะก่อน</button>` : '<span class="small" style="color:#DCE0CF">เข้าสู่ระบบด้วยบัญชีบุคลากรเพื่ออัปเดตสถานะ</span>'}
       </section>
       ${p.supervisor || p.contractor ? `<section class="card col" style="gap:4px">${p.supervisor ? `<span class="small"><span class="faint">ผู้ควบคุมงาน:</span> ${esc(p.supervisor)}</span>` : ''}${p.contractor ? `<span class="small"><span class="faint">ผู้รับจ้าง:</span> ${esc(p.contractor)}</span>` : ''}</section>` : ''}
       <section class="card row">${rev ? avatar(rev, 46) : ''}<div class="col grow" style="gap:0"><span class="faint">ผู้ตรวจรับผิดชอบ ${esc(p.unit)}</span><b>${esc(rev ? rev.full_name + ' • ' + rev.position : '— (งานของเขต)')}</b></div></section>

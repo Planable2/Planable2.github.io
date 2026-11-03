@@ -289,11 +289,9 @@ const ACTIONS = {
     persist(); return { plan_id: id };
   },
   changeStatus: (p, u) => {
-    need(u, 'update_status', 'บทบาทของคุณอัปเดตสถานะแผนไม่ได้');
+    need(u, 'view_internal', 'ผู้เยี่ยมชมอัปเดตสถานะแผนไม่ได้');
     const D = db().db, plan = D.Plans.find((x) => x.plan_id === p.plan_id);
     if (!plan) throw new Error('ไม่พบแผน');
-    const unit = db().cfg.cfg_Units.find((x) => x.name === plan.unit) || {};
-    if (unit.reviewer_id !== u.user_id && !T(u.is_admin) && !['หัวหน้า', 'ธุรการ'].includes(u.role)) throw new Error('อัปเดตได้เฉพาะผู้ตรวจของ ' + plan.unit);
     const st = db().cfg.cfg_Status.find((s) => s.status_code === p.to);
     if (!st) throw new Error('ไม่รู้จักสถานะ');
     if (T(st.need_reason) && !String(p.reason || '').trim()) throw new Error('ต้องระบุเหตุผล');
