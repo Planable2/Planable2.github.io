@@ -2,9 +2,13 @@
 import { S, plans, planYears, defaultYear, units, offices, statuses, isGuest, myOpenOrders, attendeesOf, currentFY, orderDone, assigneesOf } from '../store.js';
 import { esc, $, on, mil, money, thDate, toDate, today, daysBetween, TH_DOW, loadXLSX } from '../util.js';
 import { chart } from '../charts.js';
+import { officeHTML, summaryHTML, heatHTML, pendingHTML, imageDialog, uLabel, PROG } from '../report.js';
 import { modal, modalHead, avatarStack, icon, toast } from '../ui.js';
 
-const ui = { year: null, type: 'stack', measure: 'count', unit: 'all', office: 'all', cb: null };
+const ui = { year: null, type: 'office', measure: 'count', prog: 'dept', unit: 'all', office: 'all', cb: null };
+// มุมมองสถานะแผน: ตาราง (รายงาน) + กราฟ
+const VIEWS_T = [['office', 'ตารางแยกสำนัก'], ['sum', 'ตารางสรุป'], ['heat', 'ตารางสี'], ['pending', 'แผนค้าง']];
+const VIEWS_C = [['stack', 'แท่งแนวนอน'], ['col', 'แท่งแนวตั้ง'], ['donut', 'วงกลม'], ['prog', '% ส่งแล้ว']];
 const cbDefault = () => ({ metric: 'budget', group: 'unit', split: 'year', type: 'col', years: Object.fromEntries(planYears().map((y) => [y, true])), unit: 'all', office: 'all', status: 'all' });
 
 export function view(main, arg, app) {
@@ -19,13 +23,14 @@ export function view(main, arg, app) {
   const late = yearPlans.filter((p) => p.late);
   const lateBy = {}; late.forEach((p) => (lateBy[p.unit] = (lateBy[p.unit] || 0) + 1));
 
-  const mobile = window.innerWidth <= 860;
+  const mobile = window.innerWidth <= 860, isTable = VIEWS_T.some((t) => t[0] === ui.type);
   main.innerHTML = `
   <div class="page-head home-head">
     <div class="t"><span class="muted small">${isGuest() ? 'ยินดีต้อนรับ • โหมดผู้เยี่ยมชม' : 'สวัสดี, ' + esc(S.user.full_name) + ' • ' + TH_DOW[new Date().getDay()] + ' ' + thDate(new Date())}</span>
       <h1>ภาพรวมแผนทั้งเขต • ปีงบ ${ui.year}</h1></div>
     <label class="row small muted" style="background:var(--card);border:1px solid var(--line);border-radius:22px;padding:0 6px 0 14px;height:44px">ปีงบประมาณ
       <select id="h-year" class="inp" style="height:34px;width:auto;border:0;background:var(--green-soft);color:var(--green-ink);font-weight:600">${years.length ? years.map((y) => `<option value="${y}" ${y === ui.year ? 'selected' : ''}>${y}${y === fy ? ' (ปัจจุบัน)' : ''}</option>`).join('') : `<option>${fy}</option>`}</select></label>
+    <button class="btn" id="h-img" title="ส่งออกสถานะเป็นภาพ" aria-label="ส่งออกสถานะเป็นภาพ">${icon('image', 16)}ส่งออกเป็นภาพ</button>
     <button class="btn" id="h-export" title="ส่งออก Excel" aria-label="ส่งออก Excel">${icon('download', 16)}ส่งออก Excel</button>
   </div>
   ${ui.year < fy ? `<div class="note grey">ปีงบ ${ui.year} ปิดแล้ว — ดูและส่งออกได้ แก้ไขได้เฉพาะผู้ดูแลระบบ</div>` : ''}
@@ -37,20 +42,20 @@ export function view(main, arg, app) {
     ${kpi('ส่งกรมแล้ว', grp('ส่งกรมแล้ว').length + grp('กรมเห็นชอบ').length, mil(sum(grp('ส่งกรมแล้ว').concat(grp('กรมเห็นชอบ')), (p) => p.budget)) + ' ลบ.', '#E5F0EC', '#2F6657')}
     ${kpi('กรมเห็นชอบ', grp('กรมเห็นชอบ').length, mil(sum(grp('กรมเห็นชอบ'), (p) => p.budget)) + ' ลบ.', '#E7EEDF', '#33502F')}
   </section>
-  <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start" id="h-main">
-    <section class="card col" style="gap:12px">
-      <div class="row wrap"><h2 class="grow" style="margin:0">สถานะแผน • ${esc(ui.unit === 'all' ? 'ทั้งเขต' : ui.unit)}${ui.office === 'all' ? '' : ' • ' + esc(ui.office)}</h2>
-        <div class="seg-ctl" id="h-type">${[['stack', 'แท่งแนวนอน'], ['col', 'แท่งแนวตั้ง'], ['donut', 'วงกลม'], ['prog', '% ส่งแล้ว']].map((t) => `<button data-v="${t[0]}" class="${ui.type === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div></div>
-      <div class="row wrap small h-filt">
-        <label class="row muted">หน่วยงาน <select class="inp" id="h-unit" style="height:38px;width:auto"><option value="all">ทั้งเขต</option>${units().map((u) => `<option ${u.name === ui.unit ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
-        <label class="row muted">สำนัก <select class="inp" id="h-office" style="height:38px;width:auto"><option value="all">ทุกสำนัก</option>${offices().map((o) => `<option ${o.short === ui.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>
-        <div class="seg-ctl right" id="h-measure">${[['count', 'จำนวนแผน'], ['budget', 'งบประมาณ']].map((t) => `<button data-v="${t[0]}" class="${ui.measure === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
-      </div>
-      <div id="h-chart"></div>
-      <span class="faint">ชี้/แตะที่กราฟเพื่อดูตัวเลข • คลิกหน่วยงานเพื่อดูกราฟย่อยแยกสำนัก • แผนของเขตนับ "ส่งแล้ว" เมื่อส่งกรม</span>
-    </section>
-    <aside class="col" style="gap:14px" id="h-side"></aside>
-  </div>
+  <section class="card col" style="gap:12px" id="h-main">
+    <div class="row wrap"><h2 class="grow" style="margin:0">สถานะแผน • ${esc(ui.unit === 'all' ? 'ทั้งเขต' : uLabel(ui.unit))}${ui.office === 'all' ? '' : ' • ' + esc(ui.office)}</h2>
+      <button class="btn sm" id="h-img2">${icon('image', 14)}ส่งออกเป็นภาพ</button></div>
+    <div class="h-views" id="h-type"><span class="faint">ตาราง</span>${VIEWS_T.map((t) => `<button data-v="${t[0]}" class="chip ${ui.type === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}<span class="faint">กราฟ</span>${VIEWS_C.map((t) => `<button data-v="${t[0]}" class="chip ${ui.type === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
+    <div class="row wrap small h-filt">
+      <label class="row muted">หน่วยงาน <select class="inp" id="h-unit" style="height:38px;width:auto"><option value="all">ทั้งเขต</option>${units().map((u) => `<option value="${esc(u.name)}" ${u.name === ui.unit ? 'selected' : ''}>${esc(uLabel(u.name))}</option>`).join('')}</select></label>
+      <label class="row muted">สำนัก <select class="inp" id="h-office" style="height:38px;width:auto"><option value="all">ทุกสำนัก</option>${offices().map((o) => `<option ${o.short === ui.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>
+      ${isTable ? `<label class="row muted right">ความก้าวหน้านับจาก <select class="inp" id="h-prog" style="height:38px;width:auto">${Object.entries(PROG).map(([k, l]) => `<option value="${k}" ${k === ui.prog ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`
+        : `<div class="seg-ctl right" id="h-measure">${[['count', 'จำนวนแผน'], ['budget', 'งบประมาณ']].map((t) => `<button data-v="${t[0]}" class="${ui.measure === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>`}
+    </div>
+    <div id="h-chart"></div>
+    <span class="faint">${isTable ? 'ตัวเลขสะสม: แผนที่ส่งกรมแล้วนับรวมใน "ส่งแผนแล้ว" ด้วย • คลิกแถวหน่วยงานเพื่อดูแยกสำนัก' : 'ชี้/แตะที่กราฟเพื่อดูตัวเลข • คลิกหน่วยงานเพื่อดูกราฟย่อยแยกสำนัก • แผนของเขตนับ "ส่งแล้ว" เมื่อส่งกรม'}</span>
+  </section>
+  <div class="h-side" id="h-side"></div>
   ${mobile ? `<details class="card" id="h-bd" ${ui.bopen ? 'open' : ''}><summary class="hb-sum"><b>เปรียบเทียบทั้งเขต • สร้างกราฟเอง</b><span class="faint">แตะเพื่อเปิด</span></summary><section class="col" style="gap:14px;margin-top:12px" id="h-builder"></section></details>`
     : '<section class="card col" style="gap:14px" id="h-builder"></section>'}`;
   if ($('#h-bd')) $('#h-bd').ontoggle = () => (ui.bopen = $('#h-bd').open);
@@ -63,11 +68,12 @@ export function view(main, arg, app) {
     if (!l.length) return null;
     const vals = ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return money_ ? sum(x, (p) => p.budget) / 1e6 : x.length; });
     const sent = l.filter((p) => p.sent).length;
-    return { key: k, label: k, values: ui.type === 'prog' ? [(sent / l.length) * 100] : vals, sub: sent + '/' + l.length + ' แผน',
+    return { key: k, label: byUnit ? uLabel(k) : k, values: ui.type === 'prog' ? [(sent / l.length) * 100] : vals, sub: sent + '/' + l.length + ' แผน',
       tips: ui.type === 'prog' ? ['ส่งแล้ว ' + sent + ' จาก ' + l.length + ' แผน'] : ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return `${x.length} แผน • ${mil(sum(x, (p) => p.budget))} ลบ.`; }) };
   }).filter(Boolean);
   const type = ui.type === 'stack' ? 'hbar' : ui.type;
-  if (ui.type === 'donut') {
+  if (isTable) $('#h-chart').innerHTML = ui.type === 'office' ? officeHTML(set, ui.prog) : ui.type === 'sum' ? summaryHTML(set, ui.prog) : ui.type === 'heat' ? heatHTML(set, ui.prog) : pendingHTML(set);
+  else if (ui.type === 'donut') {
     const dcats = ST.map((s) => { const x = set.filter((p) => p.status === s.status_code); return { key: s.status_code, label: s.name, color: s.color, values: [money_ ? sum(x, (p) => p.budget) / 1e6 : x.length] }; }).filter((c) => c.values[0] > 0);
     $('#h-chart').innerHTML = chart({ cats: dcats, series: [{ label: '', color: '' }], type: 'donut', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), unit: money_ ? 'ลบ.' : 'แผน' });
   } else {
@@ -77,13 +83,13 @@ export function view(main, arg, app) {
 
   // ----- ด้านขวา (บุคลากร) -----
   const side = $('#h-side');
-  if (isGuest()) { side.innerHTML = `<div class="card small muted">โหมดผู้เยี่ยมชมแสดงเฉพาะภาพรวมแผนงาน</div>`; }
+  if (isGuest()) { side.remove(); }
   else {
     const mine = myOpenOrders(), t0 = today();
     const lateO = mine.filter((o) => toDate(o.due_date) < t0).length, nearO = mine.filter((o) => { const d = daysBetween(t0, o.due_date); return d >= 0 && d <= 3; }).length;
     const ups = S.db.Meetings.filter((m) => m.status !== 'cancelled' && toDate(m.date) >= t0).sort((a, b) => (a.date + a.start > b.date + b.start ? 1 : -1)).slice(0, 4);
     side.innerHTML = `
-      ${late.length && ui.year === currentFY() ? `<a class="note red" href="#/plans">${icon('warn')}<span class="grow"><b>เลยกำหนดรอบส่ง ${late.length} แผน</b><br>${Object.keys(lateBy).map((k) => esc(k) + ' (' + lateBy[k] + ')').join(', ')}</span>${icon('chev', 16)}</a>` : ''}
+      ${late.length && ui.year === currentFY() ? `<a class="note red" href="#/plans">${icon('warn')}<span class="grow"><b>เลยกำหนดรอบส่ง ${late.length} แผน</b><br>${Object.keys(lateBy).map((k) => esc(uLabel(k)) + ' (' + lateBy[k] + ')').join(', ')}</span>${icon('chev', 16)}</a>` : ''}
       <a class="card row" href="#/orders" style="color:var(--ink)"><span class="kpi" style="padding:0;background:none"><span class="v" style="color:var(--gold-ink)">${mine.length}</span></span><span class="grow"><b>งานสั่งการของคุณ</b><br><span class="muted small">ค้าง ${mine.length} งาน${lateO ? ' • เลยกำหนด ' + lateO : ''}${nearO ? ' • ใกล้กำหนด ' + nearO : ''}</span></span>${icon('chev', 16)}</a>
       <section class="card col" style="gap:8px"><div class="row"><h3 class="grow">ประชุมที่กำลังจะมาถึง</h3><a href="#/meetings" class="small">ดูปฏิทิน</a></div>
         ${ups.length ? ups.map((m) => { const d = toDate(m.date), mineM = attendeesOf(m.meeting_id).includes(S.user.user_id); return `<a href="#/meetings/${esc(m.meeting_id)}" class="row" style="color:var(--ink);padding:8px 0;border-top:1px solid var(--line2);align-items:flex-start"><span style="width:50px;border-radius:16px;background:${daysBetween(t0, d) === 0 ? 'var(--green)' : 'var(--soft2)'};color:${daysBetween(t0, d) === 0 ? '#fff' : 'var(--ink)'};display:flex;flex-direction:column;align-items:center;padding:5px 0;flex-shrink:0"><span style="font-size:11px">${TH_DOW[d.getDay()].slice(0, 2)}.</span><b style="font-family:var(--head);font-size:19px;font-weight:500">${d.getDate()}</b></span><span class="col grow" style="gap:3px"><b class="small">${esc(m.title)}</b><span class="faint">${esc(m.start || '')} น. • ${esc(m.place || '')}</span>${avatarStack(attendeesOf(m.meeting_id), 24, 6)}${mineM ? '<span class="tag gold" style="align-self:flex-start">คุณต้องเข้า</span>' : ''}</span></a>`; }).join('') : '<span class="faint">ไม่มีประชุมที่กำลังจะมาถึง</span>'}
@@ -98,8 +104,10 @@ export function view(main, arg, app) {
   $('#h-office').onchange = (e) => { ui.office = e.target.value; view(main, arg, app); };
   on(main, '#h-type button', 'click', (e, b) => { ui.type = b.dataset.v; view(main, arg, app); });
   on(main, '#h-measure button', 'click', (e, b) => { ui.measure = b.dataset.v; view(main, arg, app); });
+  if ($('#h-prog')) $('#h-prog').onchange = (e) => { ui.prog = e.target.value; view(main, arg, app); };
   $('#h-export').onclick = () => exportYear(yearPlans);
-  if (window.innerWidth < 900) $('#h-main').style.gridTemplateColumns = '1fr';
+  const img = () => imageDialog(set, { year: ui.year, filter: [ui.unit === 'all' ? '' : uLabel(ui.unit), ui.office === 'all' ? '' : ui.office].filter(Boolean).join(' • '), kind: { sum: 'summary', heat: 'heat', stack: 'bars', col: 'bars', donut: 'donut', prog: 'brief' }[ui.type] || 'office', prog: ui.prog, measure: ui.measure });
+  $('#h-img').onclick = img; $('#h-img2').onclick = img;
 }
 
 function kpi(l, v, s, bg, ink) { return `<a class="kpi" href="${isGuest() ? '#/home' : '#/plans'}" style="background:${bg};color:${ink}"><span class="l">${esc(l)}</span><span class="v">${esc(v)}</span><span class="s">${esc(s)}</span></a>`; }
@@ -116,7 +124,7 @@ function drill(unit, yearPlans) {
   const l = yearPlans.filter((p) => p.unit === unit), ST = statuses();
   const cats = offices().map((o) => { const x = l.filter((p) => p.office === o.short); return x.length ? { key: o.short, label: o.short, values: ST.map((s) => x.filter((p) => p.status === s.status_code).length) } : null; }).filter(Boolean);
   const sent = l.filter((p) => p.sent).length;
-  modal(`${modalHead(unit + ' • ' + l.length + ' แผน', 'งบประมาณ ' + mil(l.reduce((a, p) => a + p.budget, 0)) + ' ลบ. • ส่งแล้ว ' + sent + '/' + l.length)}
+  modal(`${modalHead(uLabel(unit) + ' • ' + l.length + ' แผน', 'งบประมาณ ' + mil(l.reduce((a, p) => a + p.budget, 0)) + ' ลบ. • ส่งแล้ว ' + sent + '/' + l.length)}
     ${chart({ cats, series: ST.map((s) => ({ label: s.name, color: s.color })), type: 'hbar', unit: 'แผน' })}
     <div class="dlg-foot"><button class="btn" data-dismiss>ปิด</button>${isGuest() ? '' : `<a class="btn pri" href="#/plans" data-dismiss onclick="sessionStorage.setItem('plan-unit',${esc(JSON.stringify(unit))})">เปิดทะเบียนแผนของ ${esc(unit)}</a>`}</div>`, { wide: true });
 }
@@ -135,7 +143,7 @@ function builder(box, all, app) {
   const DIMS = [['year', 'ปีงบประมาณ'], ['unit', 'หน่วยงาน'], ['office', 'สำนัก'], ['status', 'สถานะ']];
   const M = METRICS.find((m) => m[0] === cb.metric) || METRICS[0];
   const pool = all.filter((p) => cb.years[p.fiscal_year] && (cb.unit === 'all' || p.unit === cb.unit) && (cb.office === 'all' || p.office === cb.office) && (cb.status === 'all' || p.status === cb.status));
-  const keys = (d) => d === 'year' ? years.filter((y) => cb.years[y]).map((y) => ({ k: y, label: 'ปีงบ ' + y })) : d === 'unit' ? units().map((u) => ({ k: u.name, label: u.name })) : d === 'office' ? offices().map((o) => ({ k: o.short, label: o.short })) : d === 'status' ? ST.map((s) => ({ k: s.status_code, label: s.name, color: s.color })) : [{ k: '*', label: M[1] }];
+  const keys = (d) => d === 'year' ? years.filter((y) => cb.years[y]).map((y) => ({ k: y, label: 'ปีงบ ' + y })) : d === 'unit' ? units().map((u) => ({ k: u.name, label: uLabel(u.name) })) : d === 'office' ? offices().map((o) => ({ k: o.short, label: o.short })) : d === 'status' ? ST.map((s) => ({ k: s.status_code, label: s.name, color: s.color })) : [{ k: '*', label: M[1] }];
   const val = (p, d) => d === 'year' ? p.fiscal_year : d === 'unit' ? p.unit : d === 'office' ? p.office : d === 'status' ? p.status : '*';
   const meas = (l) => {
     if (!l.length) return 0;
@@ -169,7 +177,7 @@ function builder(box, all, app) {
     </div>
     <div class="row wrap small">
       <span class="muted">ปีงบ</span>${years.map((y) => `<button class="chip ${cb.years[y] ? 'on' : ''}" data-y="${y}">${y}</button>`).join('')}
-      <label class="row muted">หน่วยงาน ${sel('cb-unit', [['all', 'ทั้งเขต']].concat(units().map((u) => [u.name, u.name])), cb.unit)}</label>
+      <label class="row muted">หน่วยงาน ${sel('cb-unit', [['all', 'ทั้งเขต']].concat(units().map((u) => [u.name, uLabel(u.name)])), cb.unit)}</label>
       <label class="row muted">สำนัก ${sel('cb-office', [['all', 'ทุกสำนัก']].concat(offices().map((o) => [o.short, o.short])), cb.office)}</label>
       <label class="row muted">สถานะ ${sel('cb-status', [['all', 'ทุกสถานะ']].concat(ST.map((s) => [s.status_code, s.name])), cb.status)}</label>
     </div>
