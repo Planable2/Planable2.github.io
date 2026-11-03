@@ -38,8 +38,14 @@ export const daysBetween = (a, b) => Math.round((toDate(b) - toDate(a)) / 864e5)
 
 /** กม. เก็บเป็นเมตร → แสดง 12+345 */
 export const kmText = (m) => { const v = Math.round(Number(m) || 0); return `${Math.floor(v / 1000)}+${String(v % 1000).padStart(3, '0')}`; };
-/** 12+345 (หรือ 12+345.000) → 12345 เมตร (คืน NaN ถ้ารูปแบบผิด) */
-export const kmParse = (s) => { const m = /^(\d{1,4})\+(\d{3}(?:\.\d+)?)$/.exec(String(s).trim()); return m ? Number(m[1]) * 1000 + Number(m[2]) : NaN; };
+/** กม. → เมตร (คืน NaN ถ้ารูปแบบผิด): 12+345 • 12+345.5 • กม.12+345 • 12 + 345 • 12.345 (กม.ทศนิยม) • 12 */
+export const kmParse = (s) => {
+  const t = String(s ?? '').replace(/กม\.?|km/gi, '').replace(/[\s,]/g, '');
+  let m = /^(\d{1,4})\+(\d{3}(?:\.\d+)?)$/.exec(t);
+  if (m) return Number(m[1]) * 1000 + Number(m[2]);
+  m = /^\d{1,4}(\.\d+)?$/.exec(t);
+  return m ? Math.round(Number(t) * 1e6) / 1e3 : NaN;
+};
 
 export const uniq = (arr) => Array.from(new Set(arr));
 export const by = (k) => (a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0);

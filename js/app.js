@@ -1,7 +1,7 @@
 // ===== จุดเริ่มแอป: เข้าสู่ระบบ, เมนู, เปลี่ยนหน้า =====
 import { CONFIG } from './config.js';
 import { call, token, DEMO } from './api.js';
-import { S, load, isGuest, isAdmin, can, myOpenOrders, pendingFiles, pendingUsers, invalidate, badgeInfo } from './store.js';
+import { S, load, isGuest, isAdmin, can, myOpenOrders, pendingFiles, pendingUsers, invalidate, badgeInfo, canAddPlan } from './store.js';
 import { esc, $, $$, on } from './util.js';
 import { icon, avatar, toast, closeModal } from './ui.js';
 import { loginView, linkLineFlow } from './views/login.js';
@@ -117,7 +117,7 @@ function menu() {
   const o = myOpenOrders().length, f = can('classify_file') ? pendingFiles().length : 0, pu = isAdmin() ? pendingUsers().length : 0;
   const m = [
     { k: 'home', label: 'หน้าแรก', href: 'home', cols: [['สำรวจ', 'big', [['ภาพรวมแผนทั้งเขต', 'home'], ['กราฟเปรียบเทียบ', 'home']]], ['ทางลัด', 'sm', [['งานสั่งการของฉัน', 'orders'], ['ประชุมที่กำลังจะมาถึง', 'meetings']]]] },
-    { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(can('edit_plan') ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
+    { k: 'plans', label: 'ทะเบียนแผน', href: 'plans', cols: [['ทะเบียนแผนงาน', 'big', [['ดูทะเบียนแผน', 'plans'], ...(canAddPlan() ? [['ลงทะเบียนแผนใหม่', 'plans/new'], ['นำเข้าจาก Excel', 'plans/import']] : [])]]] },
     { k: 'check', label: 'ตรวจแผน', href: 'check', cols: [['ตรวจแผน', 'big', [['คำนวณ Factor F', 'check/factor'], ['ค่าดำเนินการและค่าเสื่อมราคา', 'check/op'], ['ค่าขนส่ง', 'check/transport']]]] },
     { k: 'prices', label: 'ราคาวัสดุ', href: 'prices', cols: [['ราคาวัสดุ', 'big', [['น้ำมัน', 'prices/fuel'], ['ยางแอสฟัลต์', 'prices/asphalt'], ['วัสดุจากแหล่ง', 'prices/quarry'], ['คอนกรีต / ปูนซีเมนต์', 'prices/concrete'], ['เหล็กเส้น', 'prices/steel'], ['ท่อ คสล.', 'prices/pipe']]]] },
     { k: 'orders', label: 'งานสั่งการ', href: 'orders', badge: o, cols: [['งานสั่งการ', 'big', [['งานของฉัน', 'orders'], ...(can('record_order') ? [['บันทึกงานสั่งการ', 'orders/new']] : [])]]] },

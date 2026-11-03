@@ -20,7 +20,7 @@ function seed() {
     cfg_OrderStatus: [{ code: 'ack', name: 'รับทราบ', color: '#6585A6', is_done: false, sort: 1 }, { code: 'doing', name: 'กำลังทำ', color: '#D3A04A', is_done: false, sort: 2 }, { code: 'done', name: 'เสร็จ', color: '#46703F', is_done: true, sort: 3 }],
     cfg_DocKinds: [['D01', 'หนังสือประชุม', 'ประชุม/{ปี}/{เดือน}', 'ประชุม'], ['D02', 'แผนงาน', 'แผนงาน/{ปีงบ}/{หน่วยงาน}', 'แผนงาน'], ['D03', 'ราคาสืบ', 'ราคาสืบ/{ปี}/{เดือน}', 'ไม่ผูก'], ['D04', 'งานสั่งการ', 'งานสั่งการ/{ปี}', 'งานสั่งการ'], ['D05', 'เอกสารทั่วไป', 'ทั่วไป/{ปี}', 'ไม่ผูก']]
       .map((r) => ({ kind_id: r[0], name: r[1], drive_folder: r[2], link_to: r[3], active: true })),
-    cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1, 1], ['วิศวกร', 1, 0, 1, 0, 0, 1, 1], ['นายช่าง', 1, 0, 1, 0, 0, 1, 0], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0, 0],
+    cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1, 1], ['วิศวกร', 1, 1, 1, 0, 0, 1, 1], ['นายช่าง', 1, 1, 1, 0, 0, 1, 0], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0, 0],
       ['พนักงานบริการ', 1, 0, 0, 0, 0, 1, 0, 'files'], ['ลูกจ้างชั่วคราว (พขร.)', 1, 0, 0, 0, 0, 0, 0, 'trips'], ['ผู้เยี่ยมชม', 0, 0, 0, 0, 0, 0, 0, 'none']]
       .map((r) => ({ role: r[0], view_internal: !!r[1], edit_plan: !!r[2], update_status: !!r[3], manage_meeting: !!r[4], record_order: !!r[5], classify_file: !!r[6], edit_price: !!r[7], badge: r[8] || 'meetings' })),
     cfg_MatItems: [
@@ -187,7 +187,25 @@ const nextId = (rows, key, prefix) => { let m = 0; rows.forEach((r) => { const s
 const upsert = (rows, key, obj) => { const i = rows.findIndex((r) => r[key] === obj[key]); if (i >= 0) { rows[i] = Object.assign({}, rows[i], obj); return rows[i]; } rows.push(obj); return obj; };
 const session = (u) => { const t = 'demo-' + Math.random().toString(36).slice(2); db().sessions[t] = u.user_id; persist(); return { token: t, user: pub(u) }; };
 
-function savePlanCore(u, plan, segments) {
+/** เหมือน planGate ในหลังบ้าน: edit_plan = ทุกหน่วยงาน • ผู้ตรวจ = เฉพาะแขวงของตัวเอง */
+function planGate(u, plan) {
+  if (can(u, 'edit_plan')) return;
+  const mine = (n) => (db().cfg.cfg_Units.find((x) => x.name === n) || {}).reviewer_id === u.user_id;
+  const old = plan && plan.plan_id ? db().db.Plans.find((x) => x.plan_id === plan.plan_id) : null;
+  if (!plan || !mine(plan.unit) || (old && !mine(old.unit))) throw new Error(`คุณลงทะเบียน/แก้ไขแผนได้เฉพาะแขวงที่คุณเป็นผู้ตรวจ${plan && plan.unit ? ` (${plan.unit} ไม่ใช่แขวงของคุณ)` : ''}`);
+}
+
+/** เหมือน segSummary/logKm ในหลังบ้าน: เก็บประวัติแก้ไข กม. */
+const kmT = (m) => { const v = Math.round(Number(m) || 0); return Math.floor(v / 1000) + '+' + String(v % 1000).padStart(3, '0'); };
+const segSummary = (segs) => segs.map((s) => [s.road, Number(s.km_to_m) > Number(s.km_from_m) ? kmT(s.km_from_m) + '–' + kmT(s.km_to_m) : kmT(s.km_from_m), s.side].filter(Boolean).join(' ')).join(' • ');
+function logKm(u, planId, before, after, note) {
+  if (before === after) return null;
+  const D = db().db; D.KmLog = D.KmLog || [];
+  const log = { log_id: nextId(D.KmLog, 'log_id', 'KL-'), plan_id: planId, before, after, note: note || '', by_user: u.user_id, at: nowIso() };
+  D.KmLog.push(log); return log;
+}
+
+function savePlanCore(u, plan, segments, opts = {}) {
   const D = db().db;
   if (!/^\d{4}$/.test(String(plan.fiscal_year))) throw new Error('ปีงบต้องเป็นตัวเลข 4 หลัก');
   const idc = String(plan.id_code ?? '').trim(), wc = String(plan.work_code ?? '').trim();
@@ -199,8 +217,11 @@ function savePlanCore(u, plan, segments) {
   if (plan.budget_cut === '' || plan.budget_cut == null) plan.budget_cut = plan.budget;
   if (Number(plan.budget_cut) > Number(plan.budget)) throw new Error('วงเงินหลังปรับลดต้องไม่เกินงบที่ได้รับ');
   if (!db().cfg.cfg_Units.some((x) => x.name === plan.unit)) throw new Error('ไม่รู้จักหน่วยงาน "' + plan.unit + '"');
+  const dupId = idc && db().db.Plans.find((x) => Number(x.fiscal_year) === Number(plan.fiscal_year) && x.id_code === idc && x.plan_id !== plan.plan_id);
+  if (dupId) throw new Error(`ID CODE ${idc} มีอยู่แล้วในปีงบ ${plan.fiscal_year} (${dupId.plan_id}) — แก้ไขแผนเดิมแทน`);
   if (!db().cfg.cfg_Offices.some((x) => x.short === plan.office)) throw new Error('ไม่รู้จักสำนัก "' + plan.office + '"');
   segments.forEach((s, i) => { if (!(Number(s.km_to_m) >= Number(s.km_from_m))) throw new Error('ช่วงที่ ' + (i + 1) + ': กม.สิ้นสุด ต้องไม่น้อยกว่า กม.เริ่ม'); });
+  const isNew = !plan.plan_id, oldSegs = isNew ? [] : D.Segments.filter((s) => s.plan_id === plan.plan_id).sort((a, b) => a.seq - b.seq);
   if (!plan.plan_id) {
     plan.plan_id = nextId(D.Plans, 'plan_id', 'PL-' + plan.fiscal_year + '-');
     plan.created_by = u.user_id; plan.created_at = nowIso();
@@ -211,7 +232,8 @@ function savePlanCore(u, plan, segments) {
   D.Segments = D.Segments.filter((s) => s.plan_id !== plan.plan_id);
   const segRows = segments.map((s, i) => ({ seg_id: plan.plan_id + '-S' + (i + 1), plan_id: plan.plan_id, seq: i + 1, road: s.road, km_from_m: Number(s.km_from_m), km_to_m: Number(s.km_to_m), side: s.side, control: s.control || '', section: s.section || '', parallel: s.parallel || '' }));
   D.Segments.push(...segRows);
-  return { plan: saved, segments: segRows };
+  const kmLog = isNew ? null : logKm(u, plan.plan_id, segSummary(oldSegs), segSummary(segRows), opts.kmNote || 'แก้ไขแผน');
+  return { plan: saved, segments: segRows, kmLog };
 }
 
 const ACTIONS = {
@@ -244,13 +266,24 @@ const ACTIONS = {
     return JSON.parse(JSON.stringify(out));
   },
   logout: (p) => { delete db().sessions[p.token]; persist(); return { ok: true }; },
-  savePlan: (p, u) => { need(u, 'edit_plan', 'บทบาทของคุณลงทะเบียน/แก้ไขแผนไม่ได้'); const r = savePlanCore(u, p.plan, p.segments || []); persist(); return r; },
-  bulkPlans: (p, u) => { need(u, 'edit_plan'); const saved = (p.items || []).map((it) => savePlanCore(u, it.plan, it.segments || [])); persist(); return { saved }; },
+  savePlan: (p, u) => { planGate(u, p.plan); const r = savePlanCore(u, p.plan, p.segments || []); persist(); return r; },
+  bulkPlans: (p, u) => { (p.items || []).forEach((it) => planGate(u, it.plan)); const saved = (p.items || []).map((it) => savePlanCore(u, it.plan, it.segments || [], { kmNote: 'นำเข้าไฟล์' + (p.file ? ' ' + String(p.file).slice(0, 80) : '') })); persist(); return { saved }; },
+  editKm: (p, u) => {
+    const D = db().db, plan = D.Plans.find((x) => x.plan_id === p.plan_id);
+    if (!plan) throw new Error('ไม่พบแผน');
+    planGate(u, plan);
+    (p.segments || []).forEach((s, i) => { if (!String(s.road || '').trim() || !(Number(s.km_to_m) >= Number(s.km_from_m))) throw new Error('ช่วงที่ ' + (i + 1) + ': ใส่ทางหลวง และ กม.สิ้นสุด ต้องไม่น้อยกว่า กม.เริ่มต้น'); });
+    const old = D.Segments.filter((s) => s.plan_id === plan.plan_id).sort((a, b) => a.seq - b.seq);
+    const rows = (p.segments || []).map((s, i) => ({ seg_id: plan.plan_id + '-S' + (i + 1), plan_id: plan.plan_id, seq: i + 1, road: String(s.road).trim(), km_from_m: Number(s.km_from_m), km_to_m: Number(s.km_to_m), side: s.side || '', control: s.control || '', section: s.section || '', parallel: s.parallel || '' }));
+    D.Segments = D.Segments.filter((s) => s.plan_id !== plan.plan_id).concat(rows);
+    const kmLog = logKm(u, plan.plan_id, segSummary(old), segSummary(rows), String(p.note || '').trim() || 'แก้ไข กม.');
+    persist(); return { plan_id: plan.plan_id, segments: rows, kmLog };
+  },
   deletePlan: (p, u) => {
-    need(u, 'edit_plan', 'บทบาทของคุณลบแผนไม่ได้');
     const D = db().db, id = String(p.plan_id || '');
     if (!D.Plans.some((x) => x.plan_id === id)) throw new Error('ไม่พบแผน');
-    D.Plans = D.Plans.filter((x) => x.plan_id !== id); D.Segments = D.Segments.filter((x) => x.plan_id !== id); D.StatusLog = D.StatusLog.filter((x) => x.plan_id !== id);
+    planGate(u, D.Plans.find((x) => x.plan_id === id));
+    D.Plans = D.Plans.filter((x) => x.plan_id !== id); D.Segments = D.Segments.filter((x) => x.plan_id !== id); D.StatusLog = D.StatusLog.filter((x) => x.plan_id !== id); if (D.KmLog) D.KmLog = D.KmLog.filter((x) => x.plan_id !== id);
     D.Files.forEach((f) => { if (f.link_type === 'plan' && f.link_id === id) { f.link_type = ''; f.link_id = ''; } });
     D.Meetings.forEach((m) => { if (m.plan_id === id) m.plan_id = ''; });
     persist(); return { plan_id: id };

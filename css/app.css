@@ -357,3 +357,6 @@ details.card > summary { cursor: pointer; list-style: revert; }
   .filters.open .fx select { flex: 1 1 calc(50% - 6px); min-width: 0; }
   .filters .right { margin-left: 0; }
 }
+
+/* ช่องที่กรอกผิด (ฟอร์มลงทะเบียนแผน) */
+.inp.inp-err { border-color: var(--red); box-shadow: 0 0 0 3px rgba(168, 67, 42, .15); }

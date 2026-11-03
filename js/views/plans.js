@@ -1,5 +1,5 @@
 // ===== ทะเบียนแผน: แยกปีงบ › หน่วยงาน, ลงทะเบียน/แก้ไข, นำเข้า Excel, รายละเอียด + อัปเดตสถานะ =====
-import { S, plans, planYears, defaultYear, units, offices, statuses, statusOf, unitOf, userOf, can, isAdmin, currentFY, cfg, KHWAENG_STAGES } from '../store.js';
+import { S, plans, planYears, defaultYear, units, offices, statuses, statusOf, unitOf, userOf, can, isAdmin, currentFY, cfg, KHWAENG_STAGES, canEditUnit, editableUnits, canAddPlan } from '../store.js';
 import { call } from '../api.js';
 import { esc, $, $$, on, money, mil, num, kmText, kmParse, thDate, thDateTime, debounce, loadXLSX } from '../util.js';
 import { modal, modalHead, closeModal, toast, busy, avatar, statusPill, icon, empty } from '../ui.js';
@@ -16,10 +16,11 @@ export function view(main, arg, app) {
     <div class="t"><h1>ทะเบียนแผนงาน</h1><span class="muted small">แผนที่ได้รับงบประมาณแล้ว แยกตามปีงบ › หน่วยงาน › สำนัก</span></div>
     <label class="row small muted" style="background:var(--card);border:1px solid var(--line);border-radius:22px;padding:0 6px 0 14px;height:44px">ปีงบ
       <select id="p-year" class="inp" style="height:34px;width:auto;border:0;background:var(--green-soft);color:var(--green-ink);font-weight:600">${(years.length ? years : [fy]).map((y) => `<option value="${y}" ${y === ui.year ? 'selected' : ''}>${y}${y === fy ? ' (ปัจจุบัน)' : ''}</option>`).join('')}</select></label>
-    ${can('edit_plan') ? `<button class="btn soft" id="p-import">${icon('up', 16)}นำเข้าจาก Excel</button>` : ''}
+    ${canAddPlan() ? `<button class="btn soft" id="p-import">${icon('up', 16)}นำเข้าจาก Excel</button>` : ''}
     <button class="btn" id="p-export">${icon('download', 16)}ส่งออก</button>
-    ${can('edit_plan') ? `<button class="btn pri" id="p-new">${icon('plus', 16)}ลงทะเบียนแผน</button>` : ''}
+    ${canAddPlan() ? `<button class="btn pri" id="p-new">${icon('plus', 16)}ลงทะเบียนแผน</button>` : ''}
   </div>
+  ${!canAddPlan() ? `<div class="note grey">${icon('warn', 16)}<span>บทบาท <b>${esc(S.user.role || '—')}</b> ยังไม่มีสิทธิ์ลงทะเบียนแผน และคุณยังไม่ได้เป็นผู้ตรวจของแขวงใด — ผู้ดูแลระบบเปิดสิทธิ์ได้ที่ ตั้งค่า › บทบาทและสิทธิ์ (ช่อง "ลงทะเบียนแผน") หรือกำหนดผู้ตรวจที่ ตั้งค่า › หน่วยงาน</span></div>` : !can('edit_plan') ? `<div class="note grey">${icon('warn', 16)}<span>คุณลงทะเบียน/แก้ไขแผนได้เฉพาะแขวงที่คุณเป็นผู้ตรวจ: <b>${esc(editableUnits().map((u) => u.name).join(', '))}</b></span></div>` : ''}
   ${ui.year < fy ? `<div class="note grey">ปีงบ ${ui.year} ปิดแล้ว — ดูและส่งออกได้ แก้ไขได้เฉพาะผู้ดูแลระบบ</div>` : ''}
   <section class="kpis" id="p-sum"></section>
   <div class="filters ${ui.fopen ? 'open' : ''}" id="p-filt">
@@ -50,8 +51,8 @@ export function view(main, arg, app) {
   $('#p-export').onclick = () => exportPlans(filtered());
   if ($('#p-new')) $('#p-new').onclick = () => planForm(null, app);
   if ($('#p-import')) $('#p-import').onclick = () => importDialog(app);
-  if (arg === 'new' && can('edit_plan')) planForm(null, app);
-  if (arg === 'import' && can('edit_plan')) importDialog(app);
+  if (arg === 'new' && canAddPlan()) planForm(null, app);
+  if (arg === 'import' && canAddPlan()) importDialog(app);
 }
 
 /** จำนวนตัวกรองที่เลือกอยู่ (แสดงบนปุ่ม "ตัวกรอง" ในมือถือ) */
@@ -97,6 +98,9 @@ const COLDEF = [
   { k: 'khet', l: 'สถานะเขต', w: 128, td: (p) => stagePill(p.khet) },
   { k: 'status', l: 'สถานะในระบบ', w: 140, td: (p) => statusPill(p.status), off: true },
   { k: 'rounds', l: 'ส่งกลับแก้', w: 70, td: (p) => (p.rounds ? `<span class="tag gold" data-tip="${esc('ส่งกลับแก้ ' + p.rounds + ' รอบ|' + p.reasons.join('|'))}">${p.rounds} รอบ</span>` : '<span class="faint">—</span>') },
+  { k: 'supervisor', l: 'ผู้ควบคุมงาน', w: 120, cls: 'small', td: (p) => esc(p.supervisor || ''), off: true },
+  { k: 'contractor', l: 'ผู้รับจ้าง', w: 140, cls: 'small', td: (p) => esc(p.contractor || ''), off: true },
+  { k: 'kmlog', l: 'แก้ กม.', w: 70, td: (p) => (p.kmlogs.length ? `<span class="tag" data-tip="${esc('แก้ไข กม. ' + p.kmlogs.length + ' ครั้ง|ล่าสุด: ' + p.kmlogs[p.kmlogs.length - 1].after)}">${p.kmlogs.length} ครั้ง</span>` : '<span class="faint">—</span>'), off: true },
   { k: 'note', l: 'หมายเหตุ', w: 180, td: (p) => esc(p.note || ''), off: true },
   { k: 'id', l: 'เลขที่แผน', w: 120, cls: 'num small', td: (p) => esc(p.plan_id), off: true }
 ];const COL_KEY = 'plan-cols-3';
@@ -107,7 +111,7 @@ function shownCols() {
 }
 function saveCols(keys) { try { localStorage.setItem(COL_KEY, JSON.stringify(keys)); } catch (e) {} }
 /** แก้ไข/ลบได้: มีสิทธิ์ลงทะเบียนแผน • ปีงบที่ปิดแล้วเฉพาะผู้ดูแลระบบ */
-const mayEdit = (p) => can('edit_plan') && (Number(p.fiscal_year) >= currentFY() || isAdmin());
+const mayEdit = (p) => canEditUnit(p.unit) && (Number(p.fiscal_year) >= currentFY() || isAdmin());
 
 function drawList(main) {
   const list = filtered(), yearAll = plans().filter((p) => p.fiscal_year === ui.year), ST = statuses();
@@ -124,7 +128,7 @@ function drawList(main) {
   const filtering = ui.q || ui.status !== 'all' || ui.office !== 'all' || ui.unit !== 'all' || ui.kw !== 'all' || ui.kh !== 'all';
   const box = $('#p-groups');
   if (!list.length) { box.innerHTML = empty('ไม่พบแผนตามตัวกรองในปีงบ ' + ui.year); return; }
-  const cols = shownCols(), act = can('edit_plan'), width = cols.reduce((a, c) => a + c.w, 0) + (act ? 80 : 0);
+  const cols = shownCols(), act = canAddPlan(), width = cols.reduce((a, c) => a + c.w, 0) + (act ? 112 : 0);
   box.innerHTML = units().map((u, ui_) => {
     const l = list.filter((p) => p.unit === u.name);
     if (!l.length) return '';
@@ -139,14 +143,15 @@ function drawList(main) {
         ${late ? `<span class="tag red">เลยกำหนด ${late}</span>` : ''}
         <span class="right row small muted">ผู้ตรวจ ${rev ? avatar(rev, 28) + '<b style="color:var(--ink);font-weight:500">' + esc(rev.full_name) + '</b>' : '—'}</span></button>
       ${open ? `<div class="gb scroll-x"><table class="tbl ptbl" style="min-width:${width}px;table-layout:fixed">
-        <colgroup>${cols.map((c) => `<col style="width:${c.w}px">`).join('')}${act ? '<col style="width:80px">' : ''}</colgroup>
+        <colgroup>${cols.map((c) => `<col style="width:${c.w}px">`).join('')}${act ? '<col style="width:112px">' : ''}</colgroup>
         <thead><tr>${cols.map((c, i) => `<th class="${c.cls && c.cls.includes('r') ? 'r' : ''}" ${i === 0 ? 'style="padding-left:18px"' : ''}>${esc(c.l)}</th>`).join('')}${act ? '<th class="stick-r"></th>' : ''}</tr></thead>
-        <tbody>${l.map((p) => `<tr>${cols.map((c, i) => `<td class="${c.cls || ''}" ${i === 0 ? 'style="padding-left:18px"' : ''}>${c.td(p)}</td>`).join('')}${act ? `<td class="r stick-r" style="white-space:nowrap">${mayEdit(p) ? `<button class="icon-btn sm" data-edit="${esc(p.plan_id)}" title="แก้ไขแผน" aria-label="แก้ไขแผน">${icon('edit', 16)}</button><button class="icon-btn sm" data-del="${esc(p.plan_id)}" title="ลบแผน" aria-label="ลบแผน" style="color:var(--red)">${icon('trash', 16)}</button>` : ''}</td>` : ''}</tr>`).join('')}</tbody></table></div>` : ''}
+        <tbody>${l.map((p) => `<tr>${cols.map((c, i) => `<td class="${c.cls || ''}" ${i === 0 ? 'style="padding-left:18px"' : ''}>${c.td(p)}</td>`).join('')}${act ? `<td class="r stick-r" style="white-space:nowrap">${mayEdit(p) ? `<button class="icon-btn sm" data-km="${esc(p.plan_id)}" title="แก้ไข กม." aria-label="แก้ไข กม.">${icon('ruler', 16)}</button><button class="icon-btn sm" data-edit="${esc(p.plan_id)}" title="แก้ไขแผน" aria-label="แก้ไขแผน">${icon('edit', 16)}</button><button class="icon-btn sm" data-del="${esc(p.plan_id)}" title="ลบแผน" aria-label="ลบแผน" style="color:var(--red)">${icon('trash', 16)}</button>` : ''}</td>` : ''}</tr>`).join('')}</tbody></table></div>` : ''}
     </section>`;
   }).join('');
   on(box, '.gh', 'click', (e, b) => { const n = b.parentElement.dataset.u; ui.open[n] = !b.parentElement.classList.contains('open'); drawList(main); });
   const find = (id) => plans().find((p) => p.plan_id === id);
   on(box, '[data-edit]', 'click', (e, b) => planForm(find(b.dataset.edit), main._app));
+  on(box, '[data-km]', 'click', (e, b) => kmForm(find(b.dataset.km), main._app));
   on(box, '[data-del]', 'click', (e, b) => deletePlan(find(b.dataset.del), main._app));
 }
 
@@ -188,26 +193,29 @@ function deletePlan(p, app) {
   });
 }
 
-/* ---------- รูปแบบไฟล์ พ.ร.บ. ของสำนัก (ใช้ทั้งนำเข้า/ส่งออก/แม่แบบ) ---------- */
-// หัวตาราง 2 แถวเหมือนไฟล์ต้นฉบับ • 1 แถว = 1 แผน • แผนที่มีหลายช่วง: ทางหลวง/ตอน/กม./ทางหลัก ขึ้นบรรทัดใหม่ในเซลล์เดียวกัน
-const XL_HEAD = [['ลำดับ', 'ที่'], ['ID', 'CODE'], ['รหัสงาน', ''], ['กิจกรรมตาม พ.ร.บ.', ''], ['แขวง', 'ทางหลวง'], ['พื้นที่ดำเนินการ', 'จังหวัด'], ['สทล.', ''], ['ทางหลวง', 'หมายเลข'], ['ตอน', 'ควบคุม'], ['ชื่อตอน', ''], ['กม.\n(ดำเนินการ)', 'เริ่มต้น'], ['', 'สิ้นสุด'], ['ทางหลัก', ''], ['ทางขนาน', ''], ['ชื่อตอน พ.ร.บ.', ''], ['งบประมาณ', '(บาท)']];
+/* ---------- รูปแบบไฟล์ list รวมทุกสำนัก (ใช้ทั้งนำเข้า/ส่งออก/แม่แบบ) ---------- */
+// หัวตาราง 2 แถวเหมือนไฟล์ "ฐาน(พรบ.70)" • 1 แถว = 1 แผน • แผนที่มีหลายช่วง: ทางหลวง/ตอน/กม. ขึ้นบรรทัดใหม่ในเซลล์เดียวกัน
+// กม. = "เริ่มต้น - สิ้นสุด ทางหลัก" ในช่องเดียว เช่น "911+000 - 912+600 LT+RT"
+const XL_HEAD = [['ID', 'CODE'], ['', 'รหัสงาน'], ['ลักษณะงาน', 'กิจกรรมตาม พ.ร.บ.'], ['', 'แขวง'], ['', 'จังหวัด'], ['ทางหลวง', 'หมายเลข'], ['ตอน', 'ควบคุม'], ['', 'ชื่อตอน'], ['', 'ตอนเพิ่มเติม'],
+  ['กม.', '(เริ่มต้น - สิ้นสุด)'], ['กม.ตามแผน', '(เริ่มต้น - สิ้นสุด)'], ['งบประมาณ', '(บาท)'], ['', 'สำนัก'], ['ผู้ควบคุมงาน', ''], ['ผู้รับจ้าง', 'จากผลประกวด'], ['', 'หมายเหตุ']];
 const roadNo = (r) => String(r || '').replace(/^ทล\.?\s*/, '');
 const roadName = (v) => (/^\d+$/.test(v) ? 'ทล.' + v : v);
+const kmCell = (s) => (Number(s.km_to_m) > Number(s.km_from_m) ? `${kmText(s.km_from_m)} - ${kmText(s.km_to_m)}` : kmText(s.km_from_m)) + (s.side ? ' ' + s.side : '');
 
-function xlRow(p, i) {
+function xlRow(p) {
   const S_ = (fn) => p.segs.map(fn).join('\n');
-  return [i + 1, p.id_code || '', p.work_code || '', p.activity || '', p.unit, p.province || '', p.sthl || '', S_((s) => roadNo(s.road)), S_((s) => s.control || ''), S_((s) => s.section || ''),
-    S_((s) => kmText(s.km_from_m)), S_((s) => (Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '')), S_((s) => s.side || ''), S_((s) => s.parallel || ''), p.work_name, p.budget];
+  return [p.id_code || '', p.work_code || '', p.activity || '', p.unit, p.province || '', S_((s) => roadNo(s.road)), S_((s) => s.control || ''), S_((s) => s.section || ''), '',
+    S_(kmCell), '', p.budget, p.office, p.supervisor || '', p.contractor || '', p.note || ''];
 }
 
 async function exportPlans(rows) {
   try { await loadXLSX(); } catch (e) { return toast(e.message, 'err'); }
-  const extra = ['สำนัก', 'ปีงบ', 'สถานะแขวง', 'สถานะเขต', 'สถานะในระบบ', 'ส่งกลับแก้ (รอบ)', 'หมายเหตุ', 'เลขที่แผน'];
-  const aoa = [[`ทะเบียนแผนงาน ปีงบประมาณ ${ui.year}`], XL_HEAD.map((h) => h[0]).concat(extra), XL_HEAD.map((h) => h[1]).concat(extra.map(() => ''))];
-  rows.forEach((p, i) => aoa.push(xlRow(p, i).concat([p.office, p.fiscal_year, p.khwaeng.label, p.khet.label, p.st.name, p.rounds, p.note || '', p.plan_id])));
+  // คอลัมน์ท้าย: ชื่องาน/เลขที่แผน ทำให้นำเข้ากลับได้ตรงแผนเดิม (แก้ กม. ใน Excel แล้วนำเข้าซ้ำได้)
+  const extra = ['ชื่องาน', 'ปีงบ', 'สถานะแขวง', 'สถานะเขต', 'สถานะในระบบ', 'ส่งกลับแก้ (รอบ)', 'เลขที่แผน'];
+  const aoa = [[`รายละเอียดแผนงาน - งบประมาณประจำปี ${ui.year}`], XL_HEAD.map((h) => h[0]).concat(extra), XL_HEAD.map((h) => h[1]).concat(extra.map(() => ''))];
+  rows.forEach((p) => aoa.push(xlRow(p).concat([p.work_name, p.fiscal_year, p.khwaeng.label, p.khet.label, p.st.name, p.rounds, p.plan_id])));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!merges'] = [{ s: { r: 1, c: 10 }, e: { r: 1, c: 11 } }];
-  ws['!cols'] = [6, 11, 8, 28, 16, 12, 6, 8, 8, 24, 11, 11, 9, 9, 50, 14, 10, 7, 14, 16, 14, 8, 20, 14].map((w) => ({ wch: w }));
+  ws['!cols'] = [11, 8, 34, 14, 10, 8, 8, 24, 10, 24, 14, 14, 12, 14, 18, 16, 40, 7, 14, 16, 14, 8, 14].map((w) => ({ wch: w }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'ทะเบียนแผน');
   XLSX.writeFile(wb, `ทะเบียนแผน_ปีงบ${ui.year}.xlsx`);
 }
@@ -218,7 +226,10 @@ const newSeg = () => ({ road: '', control: '', section: '', from: '', to: '', si
 function planForm(plan, app) {
   const isNew = !plan;
   const f = plan ? { ...plan, segs: plan.segs.map((s) => ({ road: s.road, control: s.control || '', section: s.section || '', from: kmText(s.km_from_m), to: Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '', side: s.side, parallel: s.parallel || '' })) }
-    : { fiscal_year: ui.year || currentFY(), unit: units()[1] ? units()[1].name : '', office: offices()[0] ? offices()[0].short : '', id_code: '', work_code: '', work_name: '', activity: '', province: (unitOf(units()[1] ? units()[1].name : '').province || ''), sthl: '', budget: '', note: '', segs: [newSeg()] };
+    : { fiscal_year: Math.max(ui.year || 0, currentFY()), unit: defUnit(), office: '', id_code: '', work_code: '', work_name: '', activity: '', province: unitOf(defUnit()).province || '', sthl: '', budget: '', note: '', segs: [newSeg()] };
+  if (!f.office) f.office = (offices().find((o) => (unitOf(f.unit).kind === 'เขต' ? o.scope !== 'เฉพาะแขวง' : o.scope !== 'เฉพาะเขต')) || {}).short || '';
+  // หน่วยงานที่เลือกได้: เฉพาะที่มีสิทธิ์ (แก้แผนเดิมของหน่วยงานอื่นที่ admin ย้ายมาก็ยังแสดงหน่วยงานเดิม)
+  const unitList = uniqUnits(editableUnits().concat(plan ? [unitOf(plan.unit)] : []));
   if (!f.segs.length) f.segs.push(newSeg());
   const offOpts = (u) => offices().filter((o) => (unitOf(u).kind === 'เขต' ? o.scope !== 'เฉพาะแขวง' : o.scope !== 'เฉพาะเขต'));
   const acts = [...new Set(plans().map((p) => p.activity).filter(Boolean))].sort();
@@ -228,7 +239,7 @@ function planForm(plan, app) {
     <datalist id="pf-acts">${acts.map((a) => `<option value="${esc(a)}">`).join('')}</datalist><datalist id="pf-provs">${provs.map((a) => `<option value="${esc(a)}">`).join('')}</datalist><datalist id="pf-sides">${SIDES.map((a) => `<option value="${a}">`).join('')}</datalist>
     <div class="fgrid">
       <label class="f">ปีงบประมาณ (พ.ศ.) *<input class="inp" data-k="fiscal_year" value="${esc(f.fiscal_year)}" inputmode="numeric" maxlength="4" placeholder="เช่น ${currentFY()}"></label>
-      <label class="f">หน่วยงาน (แขวง) *<select class="inp" data-k="unit">${units().map((u) => `<option ${u.name === f.unit ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
+      <label class="f">หน่วยงาน (แขวง) *<select class="inp" data-k="unit">${unitList.map((u) => `<option ${u.name === f.unit ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select></label>
       <label class="f">สำนัก *<select class="inp" data-k="office">${offOpts(f.unit).map((o) => `<option ${o.short === f.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>
     </div>
     <div class="fgrid">
@@ -255,6 +266,8 @@ function planForm(plan, app) {
     <div class="fgrid">
       <label class="f">งบประมาณ (บาท) *<input class="inp num" data-k="budget" value="${esc(f.budget)}" inputmode="numeric"></label>
       <label class="f">หมายเหตุ<input class="inp" data-k="note" value="${esc(f.note || '')}"></label>
+      <label class="f">ผู้ควบคุมงาน<input class="inp" data-k="supervisor" value="${esc(f.supervisor || '')}"></label>
+      <label class="f">ผู้รับจ้าง<input class="inp" data-k="contractor" value="${esc(f.contractor || '')}"></label>
     </div>
     <div class="row wrap small"><span class="tag">ผู้ตรวจ: ${esc((userOf(unitOf(f.unit).reviewer_id) || {}).full_name || '—')}</span><span class="tag">${isNew ? 'สถานะเริ่มต้น' : 'สถานะ'}: ${esc(statusOf(isNew ? (unitOf(f.unit).kind === 'เขต' ? 's0' : 's1') : plan.status).name)}</span></div>
     <span class="err" id="pf-err"></span>
@@ -265,32 +278,48 @@ function planForm(plan, app) {
     $('#pf-add', dlg).onclick = () => { const l = f.segs[f.segs.length - 1] || {}; f.segs.push({ ...newSeg(), road: l.road || '', control: l.control || '', section: l.section || '' }); draw(dlg); };
     $('#pf-save', dlg).onclick = async () => {
       const err = $('#pf-err', dlg), segs = [];
-      if (!/^2[5-6]\d{2}$/.test(String(f.fiscal_year).trim())) return (err.textContent = 'ปีงบประมาณต้องเป็น พ.ศ. 4 หลัก เช่น ' + currentFY());
-      const idc = String(f.id_code || '').trim(), wc = String(f.work_code || '').trim();
-      if (!idc && !wc) return (err.textContent = 'กรุณาใส่ ID CODE หรือรหัสงาน อย่างน้อย 1 อย่าง');
-      if ((idc && !/^\d{4,12}$/.test(idc)) || (wc && !/^\d{4,12}$/.test(wc))) return (err.textContent = 'ID CODE / รหัสงาน ต้องเป็นตัวเลข');
+      $$('.inp-err', dlg).forEach((x) => x.classList.remove('inp-err'));
+      /** แจ้งข้อผิดพลาดพร้อมชี้ช่อง: ขอบแดง + เลื่อนไปที่ช่อง */
+      const bad = (sel, msg) => { const el = sel && $(sel, dlg); if (el) { el.classList.add('inp-err'); el.focus(); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } err.textContent = msg; };
+      if (!/^2[5-6]\d{2}$/.test(String(f.fiscal_year).trim())) return bad('[data-k=fiscal_year]', 'ปีงบประมาณต้องเป็น พ.ศ. 4 หลัก เช่น ' + currentFY());
+      const idc = String(f.id_code || '').replace(/\s/g, ''), wc = String(f.work_code || '').replace(/\s/g, '');
+      if (!idc && !wc) return bad('[data-k=id_code]', 'กรุณาใส่ ID CODE หรือรหัสงาน อย่างน้อย 1 อย่าง');
+      if (idc && !/^\d{4,12}$/.test(idc)) return bad('[data-k=id_code]', 'ID CODE ต้องเป็นตัวเลข 4–12 หลัก');
+      if (wc && !/^\d{4,12}$/.test(wc)) return bad('[data-k=work_code]', 'รหัสงานต้องเป็นตัวเลข 4–12 หลัก');
+      const dupe = idc && plans().find((x) => x.fiscal_year === Number(f.fiscal_year) && x.id_code === idc && (!plan || x.plan_id !== plan.plan_id));
+      if (dupe) return bad('[data-k=id_code]', `ID CODE ${idc} มีอยู่แล้วในปีงบ ${f.fiscal_year}: ${dupe.plan_id} ${dupe.work_name} — แก้ไขแผนเดิมแทน`);
+      if (!String(f.work_name || '').trim()) return bad('[data-k=work_name]', 'กรุณาใส่ชื่องาน (ชื่อตอน พ.ร.บ.)');
+      if (!(num(f.budget) > 0)) return bad('[data-k=budget]', 'กรุณาใส่งบประมาณเป็นตัวเลขมากกว่า 0');
       for (let i = 0; i < f.segs.length; i++) {
-        const s = f.segs[i]; if (!s.road && !s.from && !s.to) continue;
+        const s = f.segs[i], row = `[data-seg="${i}"] `; if (!s.road && !s.from && !s.to) continue;
         const a = kmParse(s.from), b = String(s.to).trim() ? kmParse(s.to) : a;
-        if (!s.road.trim() || isNaN(a) || isNaN(b)) return (err.textContent = `ช่วงที่ ${i + 1}: ใส่ทางหลวง และ กม. รูปแบบ 12+345`);
-        if (b < a) return (err.textContent = `ช่วงที่ ${i + 1}: กม.สิ้นสุด ต้องไม่น้อยกว่า กม.เริ่มต้น`);
+        if (!s.road.trim()) return bad(row + '[data-s=road]', `ช่วงที่ ${i + 1}: ใส่หมายเลขทางหลวง เช่น 101`);
+        if (isNaN(a)) return bad(row + '[data-s=from]', `ช่วงที่ ${i + 1}: กม.เริ่มต้น "${s.from}" ไม่ถูกต้อง — ใช้รูปแบบ 12+345 หรือ 12.345`);
+        if (isNaN(b)) return bad(row + '[data-s=to]', `ช่วงที่ ${i + 1}: กม.สิ้นสุด "${s.to}" ไม่ถูกต้อง — ใช้รูปแบบ 12+345 หรือ 12.345 (ว่างได้ถ้าเป็นจุดเดียว)`);
+        if (b < a) return bad(row + '[data-s=to]', `ช่วงที่ ${i + 1}: กม.สิ้นสุด ต้องไม่น้อยกว่า กม.เริ่มต้น`);
         segs.push({ road: roadName(s.road.trim()), km_from_m: a, km_to_m: b, side: s.side.trim(), control: s.control.trim(), section: s.section.trim(), parallel: s.parallel.trim() });
       }
-      if (!segs.length && f.office !== 'สร. (งานอาคาร)') return (err.textContent = 'กรุณาระบุช่วงสายทางอย่างน้อย 1 ช่วง');
-      const payload = { plan: { plan_id: plan ? plan.plan_id : '', fiscal_year: Number(String(f.fiscal_year).trim()), unit: f.unit, office: f.office, id_code: idc, work_code: wc, work_name: String(f.work_name).trim(), activity: (f.activity || '').trim(), province: (f.province || '').trim(), sthl: String(f.sthl || '').trim(), budget: num(f.budget), budget_cut: null, note: f.note || '' }, segments: segs };
+      if (!segs.length && f.office !== 'สร. (งานอาคาร)') return bad('[data-seg="0"] [data-s=road]', 'กรุณาระบุช่วงสายทางอย่างน้อย 1 ช่วง (งานอาคารไม่ต้องระบุ)');
+      const payload = { plan: { plan_id: plan ? plan.plan_id : '', fiscal_year: Number(String(f.fiscal_year).trim()), unit: f.unit, office: f.office, id_code: idc, work_code: wc, work_name: String(f.work_name).trim(), activity: (f.activity || '').trim(), province: (f.province || '').trim(), sthl: String(f.sthl || '').trim(), budget: num(f.budget), budget_cut: null, note: f.note || '', supervisor: String(f.supervisor || '').trim(), contractor: String(f.contractor || '').trim() }, segments: segs };
       if (!payload.plan.plan_id) delete payload.plan.plan_id;
       const btn = $('#pf-save', dlg); busy(btn);
       try {
         const r = await call('savePlan', payload);
-        mergeSaved([r]);
+        mergeSaved([r]); if (r.kmLog) S.db.KmLog.push(r.kmLog);
         ui.year = Number(r.plan.fiscal_year); ui.open[r.plan.unit] = true;
         closeModal(); toast((isNew ? 'ลงทะเบียนแล้ว: ' : 'บันทึกแล้ว: ') + r.plan.plan_id + ' ' + r.plan.work_name);
         app.refresh();
-      } catch (x) { err.textContent = x.message; busy(btn, false); }
+      } catch (x) { bad(/ID CODE/.test(x.message) ? '[data-k=id_code]' : /แขวง|หน่วยงาน/.test(x.message) ? '[data-k=unit]' : '', x.message); busy(btn, false); }
     };
   };
   modal('', { wide: true, onMount: draw });
 }
+/** แขวงเริ่มต้นของฟอร์ม: แขวงที่ฉันเป็นผู้ตรวจ → แขวงแรกที่มีสิทธิ์ */
+function defUnit() {
+  const me = S.user.user_id, list = editableUnits();
+  return ((list.find((u) => u.reviewer_id === me) || list.find((u) => u.kind !== 'เขต') || list[0]) || {}).name || '';
+}
+const uniqUnits = (l) => l.filter((u, i) => u && u.name && l.findIndex((x) => x.name === u.name) === i);
 
 /** ใส่ผลบันทึกกลับเข้าข้อมูลในเครื่อง (แผนใหม่ = เพิ่ม • แผนเดิม = แทนที่ พร้อมช่วงสายทาง) */
 function mergeSaved(list) {
@@ -317,23 +346,32 @@ const FIELD = [
   ['name', (s) => (s.includes('พ.ร.บ') && s.startsWith('ชื่อ')) || s.startsWith('ชื่องาน')],
   ['road', (s) => s.startsWith('ทางหลวง') || s.startsWith('สายทาง')],
   ['control', (s) => s.startsWith('ตอนควบคุม') || s === 'ตอน'],
+  ['extra', (s) => s.startsWith('ตอนเพิ่มเติม')],
   ['section', (s) => s.startsWith('ชื่อตอน')],
+  ['kmplan', (s) => s.includes('ตามแผน')],                          // กม.ตามแผน (ใช้เมื่อช่อง กม. ว่าง)
+  ['kmrange', (s) => s.includes('เริ่ม') && s.includes('สิ้นสุด')],   // "กม.(เริ่มต้น - สิ้นสุด)" ช่องเดียว
   ['from', (s) => s.includes('เริ่ม')],
   ['to', (s) => s.includes('สิ้นสุด')],
   ['side', (s) => s.startsWith('ทางหลัก') || s === 'ฝั่ง'],
   ['parallel', (s) => s.startsWith('ทางขนาน')],
   ['budget', (s) => s.startsWith('งบประมาณ') || s.startsWith('งบที่ได้รับ')],
   ['office', (s) => s.startsWith('สำนัก')],
+  ['supervisor', (s) => s.startsWith('ผู้ควบคุม')],
+  ['contractor', (s) => s.startsWith('ผู้รับจ้าง')],
   ['fy', (s) => s.startsWith('ปีงบ')],
   ['note', (s) => s.startsWith('หมายเหตุ')]
 ];
+/** ค่าในเซลล์: ตัด _x000D_ • "x" / "xxx" / "-" = ว่าง (ไฟล์ใส่แทนช่องที่ไม่มีข้อมูล เช่น งานอาคาร) */
+const clean = (v) => { const s = String(v ?? '').replace(/_x000D_|\r/g, '').trim(); return /^(x+|-+)$/i.test(s) ? '' : s; };
+/** รหัสต้องเป็นตัวเลขล้วน (กันแถวรวม "จำนวน 84 แผนงาน" ถูกอ่านเป็นรหัส 84) */
+const digits = (v) => (typeof v === 'number' ? String(v) : /^\s*\d+\s*$/.test(String(v ?? '')) ? String(v).trim() : '');
 
 /** อ่านแผ่นงาน: หาแถวหัวตาราง → จับคอลัมน์ → รวมแถวเป็นแผน */
 function readSheet(aoa, sheetName) {
   let h = aoa.findIndex((r, i) => i < 15 && r.some((c) => { const s = norm(c); return /^ID/i.test(s) || s.startsWith('รหัสงาน') || s.includes('ชื่อตอนพ.ร.บ') || s.startsWith('ชื่องาน'); }));
-  if (h < 0) return { error: 'ไม่พบหัวตาราง — ต้องมีคอลัมน์ ID / รหัสงาน และ ชื่อตอน พ.ร.บ. / ชื่องาน' };
+  if (h < 0) return { error: 'ไม่พบหัวตาราง — ต้องมีคอลัมน์ ID CODE หรือ รหัสงาน' };
   const sub = aoa[h + 1] || [];
-  const hasSub = sub.some((c) => /^(เริ่มต้น|สิ้นสุด|CODE|ที่|จังหวัด|หมายเลข|ควบคุม)/.test(norm(c)));
+  const hasSub = sub.some((c) => /^(เริ่มต้น|สิ้นสุด|CODE|ที่|จังหวัด|หมายเลข|ควบคุม|รหัสงาน|\(เริ่มต้น)/.test(norm(c)));
   const width = Math.max(...aoa.slice(h, h + 2).map((r) => r.length));
   const col = {};
   for (let c = 0; c < width; c++) {
@@ -341,14 +379,14 @@ function readSheet(aoa, sheetName) {
     const hit = FIELD.find(([k, fn]) => col[k] === undefined && s && fn(s));
     if (hit) col[hit[0]] = c;
   }
-  // ปีงบจากหัวกระดาษ "…ประจำปี 2570" หรือชื่อแผ่นงาน "70"
+  // ปีงบจากหัวกระดาษ "…ประจำปี 2570" หรือชื่อแผ่นงาน "70" / "ฐาน(พรบ.70)"
   const title = aoa.slice(0, h).flat().join(' ');
-  const fy = Number((title.match(/25\d{2}/) || [])[0]) || (/^\d{2}$/.test(String(sheetName).trim()) ? 2500 + Number(sheetName) : 0);
+  const sn = (String(sheetName).match(/(\d{2})\)?\s*$/) || [])[1];
+  const fy = Number((title.match(/25\d{2}/) || [])[0]) || (sn ? 2500 + Number(sn) : 0);
   const rows = [];
   aoa.slice(h + (hasSub ? 2 : 1)).forEach((r, i) => {
     const g = (k) => (col[k] === undefined ? '' : r[col[k]]);
-    const id = String(g('id') ?? '').replace(/\D/g, '') + String(g('code') ?? '').replace(/\D/g, ''), name = String(g('name') ?? '').trim();
-    if (!id && !name) return;   // แถวว่าง / แถวรวม "จำนวน … แผนงาน"
+    if (!digits(g('id')) && !digits(g('code')) && !clean(g('name'))) return;   // แถวว่าง / แถวรวม / ตารางสรุปด้านข้าง
     rows.push({ line: i + h + (hasSub ? 3 : 2), g });
   });
   return { col, fy, rows };
@@ -356,8 +394,17 @@ function readSheet(aoa, sheetName) {
 
 function autoUnit(name) {
   const n = (s) => String(s || '').replace(/แขวงทางหลวง(ชนบท)?/g, '').replace(/\(.*?\)/g, '').replace(/\s+/g, '').toLowerCase();
-  const x = n(name), u = x && units().find((u) => n(u.name) === x || n(u.short) === x);
+  const x = n(name);
+  if (/^(สทล|เขต|สำนักงานทางหลวง)/.test(x)) return (editableUnits().find((u) => u.kind === 'เขต') || {}).name || '';   // "สทล2." = งานของเขต
+  const u = x && editableUnits().find((u) => n(u.name) === x || n(u.short) === x);
   return u ? u.name : '';
+}
+/** สำนักในไฟล์ → สำนักในระบบ: "สร. อาคาร" = "สร. (งานอาคาร)" (ไม่สนช่องว่าง/วงเล็บ/คำว่า งาน) */
+function matchOffice(v) {
+  const s = clean(v); if (!s) return '';
+  const n = (x) => String(x).replace(/[\s()]/g, '').replace(/งาน/g, '');
+  const o = offices().find((x) => x.short === s) || offices().find((x) => n(x.short) === n(s));
+  return o ? o.short : s;
 }
 function savedMap() { try { return JSON.parse(localStorage.getItem(MAP_KEY) || '{}') || {}; } catch (e) { return {}; } }
 
@@ -366,26 +413,47 @@ function toPlans(sheet, st) {
   const out = new Map();
   sheet.rows.forEach(({ line, g }) => {
     const fileUnit = String(g('unit') || '').trim(), unit = st.map[fileUnit] ?? '';
-    const fy = Number(String(g('fy') || '').trim()) || st.fy, id = String(g('id') ?? '').replace(/\D/g, '');
-    const plan = { fiscal_year: fy, unit, office: String(g('office') || '').trim() || st.office, id_code: id, work_code: String(g('code') ?? '').replace(/\D/g, ''), work_name: String(g('name') || '').replace(/\s+/g, ' ').trim(),
-      activity: String(g('activity') || '').trim(), province: String(g('province') || '').trim(), sthl: String(g('sthl') ?? '').trim(), budget: num(g('budget')), budget_cut: null };
-    if (g('note')) plan.note = String(g('note')).trim();
+    const fy = Number(String(g('fy') || '').trim()) || st.fy, id = digits(g('id'));
+    const activity = clean(g('activity')).replace(/\s+/g, ' '), fileName = clean(g('name')).replace(/\s+/g, ' ');
+    const plan = { fiscal_year: fy, unit, office: (sheet.col.office !== undefined ? matchOffice(g('office')) : '') || st.office, id_code: id, work_code: digits(g('code')),
+      // ไม่มีคอลัมน์ชื่องาน: ใช้ลักษณะงานเป็นชื่อ (แผนที่มีอยู่แล้วคงชื่อเดิม — ดู check)
+      work_name: fileName || activity, _autoName: !fileName,
+      activity, province: clean(g('province')), sthl: clean(g('sthl')), budget: num(g('budget')), budget_cut: null };
+    ['note', 'supervisor', 'contractor'].forEach((k) => { if (sheet.col[k] !== undefined) plan[k] = clean(g(k)); });
     const pid = String(g('plan_id') || '').trim();   // ไฟล์ที่ส่งออกจากระบบมี "เลขที่แผน" → อัปเดตแผนนั้นตรงๆ
     if (pid) plan.plan_id = pid;
     const key = pid || keyOf(plan);
     if (!out.has(key)) out.set(key, { line, fileUnit, plan, segments: [], err: '' });
     const it = out.get(key);
     // ช่วงสายทาง: บรรทัดในเซลล์ กม.เริ่มต้น = 1 ช่วง • ทางหลวง/ตอน/ชื่อตอน/ทางหลัก ที่เว้นบรรทัดไว้ใช้ค่าบรรทัดก่อนหน้า
-    const L = Object.fromEntries(['road', 'control', 'section', 'from', 'to', 'side', 'parallel'].map((k) => [k, cellLines(g(k))]));
+    const L = Object.fromEntries(['road', 'control', 'section', 'from', 'to', 'side', 'parallel', 'kmrange', 'kmplan'].map((k) => [k, cellLines(g(k)).map(clean)]));
     const carry = (k, i) => { for (let j = i; j >= 0; j--) if (L[k][j]) return L[k][j]; return ''; };
-    L.from.forEach((fr, i) => {
+    const extra = clean(g('extra')), sec = (i) => [carry('section', i), extra].filter(Boolean).join(' ');
+    if (sheet.col.kmrange !== undefined || sheet.col.kmplan !== undefined) {
+      // "340+900 - 341+400" • "911+000 - 912+600 LT+RT" • หลายบรรทัด • บรรทัดท้าย "LT+RT" = ทางหลักของทุกช่วง
+      const lines = L.kmrange.some(Boolean) ? L.kmrange : L.kmplan, KM = /\d+\s*\+\s*\d+(?:\.\d+)?/g;
+      let tailSide = '';
+      lines.forEach((ln, i) => {
+        if (!ln) return;
+        // ทางหลัก = ข้อความหลัง กม. ตัวสุดท้าย ("LT+RT", "LT.,RT.") • บรรทัดที่ไม่มี กม. แต่เป็นตัวอักษรล้วน = ทางหลักของทุกช่วง
+        const m = [...ln.matchAll(KM)], ks = m.map((k) => k[0].replace(/\s/g, ''));
+        const sd = m.length ? ln.slice(m[m.length - 1].index + m[m.length - 1][0].length).replace(/^[\s\-–]+/, '').trim() : '';
+        if (!ks.length) { if (/^[A-Za-z][A-Za-z.,+\s]*$/.test(ln)) tailSide = ln.replace(/\s/g, '').toUpperCase(); else it.err = it.err || `แถว ${line}: กม. "${ln}" ไม่ถูกต้อง (รูปแบบ 12+345 - 13+000)`; return; }
+        let a = kmParse(ks[0]), b = ks[1] ? kmParse(ks[1]) : a;
+        if (b < a) [a, b] = [b, a];
+        it.segments.push({ road: roadName(carry('road', i)), control: carry('control', i), section: sec(i), km_from_m: a, km_to_m: b, side: sd.replace(/\s/g, '').toUpperCase(), parallel: '' });
+      });
+      if (tailSide) it.segments.forEach((s) => { if (!s.side) s.side = tailSide; });
+      if (!it.segments.length && L.road.some(Boolean)) it.warn = 'ไม่มี กม. — แก้ภายหลังด้วยปุ่ม "แก้ไข กม."';
+    }
+    else L.from.forEach((fr, i) => {
       if (!fr) return;
       let a = kmParse(fr), b = L.to[i] ? kmParse(L.to[i]) : a;
       if (isNaN(a) || isNaN(b)) { it.err = it.err || `แถว ${line}: กม. "${fr}${L.to[i] ? ' – ' + L.to[i] : ''}" ไม่ถูกต้อง`; return; }
       if (b < a) [a, b] = [b, a];
-      it.segments.push({ road: roadName(carry('road', i)), control: carry('control', i), section: carry('section', i), km_from_m: a, km_to_m: b, side: carry('side', i), parallel: L.parallel[i] || '' });
+      it.segments.push({ road: roadName(carry('road', i)), control: carry('control', i), section: sec(i), km_from_m: a, km_to_m: b, side: carry('side', i), parallel: L.parallel[i] || '' });
     });
-    if (!L.from.some(Boolean) && L.road.some(Boolean)) it.err = it.err || `แถว ${line}: มีทางหลวงแต่ไม่มี กม.`;
+    if (sheet.col.kmrange === undefined && sheet.col.kmplan === undefined && !L.from.some(Boolean) && L.road.some(Boolean)) it.warn = 'ไม่มี กม. — แก้ภายหลังด้วยปุ่ม "แก้ไข กม."';
   });
   return [...out.values()];
 }
@@ -400,13 +468,15 @@ function check(items, st) {
   return items.map((it) => {
     const p = it.plan, r = { ...it, plan: { ...p }, mode: 'new' };
     const old = p.plan_id ? plans().find((x) => x.plan_id === p.plan_id) : byKey.get(keyOf(p));
-    if (p.plan_id && !old) delete r.plan.plan_id;   // เลขที่แผนไม่มีในระบบ (เช่น ลบไปแล้ว) → ลงเป็นแผนใหม่
+    if (p.plan_id && !old) delete r.plan.plan_id;
+    if (p._autoName && old) r.plan.work_name = old.work_name;   // ไฟล์ไม่มีชื่องาน: แผนเดิมคงชื่อเดิม
+    delete r.plan._autoName;   // เลขที่แผนไม่มีในระบบ (เช่น ลบไปแล้ว) → ลงเป็นแผนใหม่
     if (r.err) return r;
     if (!/^25\d{2}$/.test(String(p.fiscal_year))) r.err = 'ไม่ทราบปีงบ — ใส่ปีงบด้านบน';
     else if (!O.includes(p.office)) r.err = `สำนัก "${p.office}" ไม่มีในระบบ`;
     else if (!p.id_code && !p.work_code) r.err = 'ไม่มี ID CODE / รหัสงาน';
     else if ((p.id_code && !/^\d{4,12}$/.test(p.id_code)) || (p.work_code && !/^\d{4,12}$/.test(p.work_code))) r.err = 'ID CODE / รหัสงาน ต้องเป็นตัวเลข';
-    else if (!p.work_name) r.err = 'ไม่มีชื่องาน';
+    else if (!r.plan.work_name) r.err = 'ไม่มีชื่องาน / ลักษณะงาน';
     else if (!(p.budget > 0)) r.err = 'งบประมาณว่าง';
     else if (old) { if (st.update) { r.mode = 'update'; r.plan.plan_id = old.plan_id; r.old = old; } else r.err = 'มีในระบบแล้ว (ข้าม)'; }
     return r;
@@ -418,16 +488,16 @@ function importDialog(app) {
   const draw = (dlg) => {
     if (!st.sheet) {
       dlg.innerHTML = `${modalHead('นำเข้าแผนจาก Excel', 'ใช้ไฟล์ทะเบียน พ.ร.บ. ของสำนักได้เลย (รวมทุกแขวง) — ระบบเลือกเฉพาะแขวงที่ตรงกับหน่วยงานในระบบ')}
-        <label class="col center" style="border:2px dashed #B8C7AE;background:#F7F9F3;border-radius:24px;padding:34px;cursor:pointer;align-items:center;gap:6px">${icon('up', 34)}<b>เลือกไฟล์ .xlsx</b><span class="faint">คอลัมน์: ID CODE • รหัสงาน • กิจกรรมตาม พ.ร.บ. • แขวง • จังหวัด • สทล. • ทางหลวง • ตอนควบคุม • ชื่อตอน • กม. เริ่มต้น/สิ้นสุด • ทางหลัก • ทางขนาน • ชื่อตอน พ.ร.บ. • งบประมาณ</span><input type="file" accept=".xlsx,.xls,.csv" id="im-file" hidden></label>
+        <label class="col center" style="border:2px dashed #B8C7AE;background:#F7F9F3;border-radius:24px;padding:34px;cursor:pointer;align-items:center;gap:6px">${icon('up', 34)}<b>เลือกไฟล์ .xlsx</b><span class="faint">ไฟล์ list รวมทุกสำนัก (ฐาน พ.ร.บ.) หรือไฟล์ พ.ร.บ. ของสำนัก • คอลัมน์: ID CODE • รหัสงาน • กิจกรรมตาม พ.ร.บ. • แขวง • จังหวัด • สทล. • ทางหลวง • ตอนควบคุม • ชื่อตอน • กม. เริ่มต้น/สิ้นสุด • ทางหลัก • ทางขนาน • ชื่อตอน พ.ร.บ. • งบประมาณ</span><input type="file" accept=".xlsx,.xls,.csv" id="im-file" hidden></label>
         <span class="err" id="im-err"></span>
         <div class="row wrap note grey"><span class="grow">ไม่มีไฟล์? ดาวน์โหลดแม่แบบรูปแบบเดียวกับไฟล์ พ.ร.บ. • แผนที่มีหลายช่วงสายทาง ให้ขึ้นบรรทัดใหม่ในเซลล์ (Alt+Enter)</span><button class="btn sm" id="im-tpl">${icon('download', 14)}ดาวน์โหลดแม่แบบ</button></div>
         <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button></div>`;
       $('#im-tpl', dlg).onclick = async () => {
         try { await loadXLSX(); } catch (x) { return toast(x.message, 'err'); }
         const u = units().find((x) => x.kind !== 'เขต') || {};
-        const ws = XLSX.utils.aoa_to_sheet([[`รายละเอียดแผนงานงบประมาณ พ.ร.บ.ประจำปี ${ui.year || currentFY()}`], XL_HEAD.map((h) => h[0]), XL_HEAD.map((h) => h[1]),
-          [1, 70000001, '22000', 'งานบำรุงตามกำหนดเวลา', u.name || 'แขวง 1', u.province || '', 2, 101, '0101', 'ชื่อตอน', '1+000\n5+200', '3+000\n6+000', 'LT+RT\nRT', '', 'งานบำรุงตามกำหนดเวลา ทางหลวงหมายเลข 101 ตอน ชื่อตอน จ.' + (u.province || ''), 9600000]]);
-        ws['!merges'] = [{ s: { r: 1, c: 10 }, e: { r: 1, c: 11 } }];
+        const ws = XLSX.utils.aoa_to_sheet([[`รายละเอียดแผนงาน - งบประมาณประจำปี ${ui.year || currentFY()}`], XL_HEAD.map((h) => h[0]), XL_HEAD.map((h) => h[1]),
+          [70000001, 22200, 'งานเสริมผิวแอสฟัลต์', u.name || 'แขวง 1', u.province || '', 101, '0101', 'ชื่อตอน', 'ตอน 1', '1+000 - 3+000 LT+RT', '', 9600000, 'สร.', '', '', ''],
+          [70000002, 22200, 'งานเสริมผิวแอสฟัลต์ (2 ช่วง)', u.name || 'แขวง 1', u.province || '', '1292\n1292', '0100\n0100', 'ชื่อตอน', '', '1+700 - 3+340\n11+000 - 13+658\nLT+RT', '', 15000000, 'สร.', '', '', '']]);
         const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, String(ui.year || currentFY()).slice(-2)); XLSX.writeFile(wb, 'แม่แบบทะเบียนแผน.xlsx');
       };
       $('#im-file', dlg).onchange = async (e) => {
@@ -440,7 +510,7 @@ function importDialog(app) {
         // สำนักจากชื่อไฟล์ เช่น "ทะเบียนแผน สร..xlsx" → สร. (เลือกชื่อที่ยาวสุดที่อยู่ในชื่อไฟล์)
         st.office = offices().map((o) => o.short).filter((s) => file.name.includes(s)).sort((a, b) => b.length - a.length)[0] || (offices()[0] || {}).short || '';
         const saved = savedMap();
-        [...new Set(sheet.rows.map((r) => String(r.g('unit') || '').trim()))].forEach((n) => (st.map[n] = saved[n] !== undefined ? saved[n] : autoUnit(n)));
+        [...new Set(sheet.rows.map((r) => String(r.g('unit') || '').trim()))].forEach((n) => { const v = saved[n] !== undefined ? saved[n] : autoUnit(n); st.map[n] = editableUnits().some((u) => u.name === v) ? v : ''; });
         if (sheet.col.unit === undefined) st.map[''] = saved[''] ?? (units().find((x) => x.kind !== 'เขต') || {}).name ?? '';
         draw(dlg);
       };
@@ -450,13 +520,14 @@ function importDialog(app) {
     const ok = res.filter((r) => !r.err), bad = res.filter((r) => r.err), nNew = ok.filter((r) => r.mode === 'new').length, nUp = ok.length - nNew;
     const names = [...new Set(all.map((x) => x.fileUnit))], cnt = (n) => all.filter((x) => x.fileUnit === n);
     const mapped = names.filter((n) => st.map[n]), other = names.filter((n) => !st.map[n]);
-    const unitSel = (n) => `<select class="inp" data-map="${esc(n)}" style="height:36px"><option value="">— ไม่นำเข้า —</option>${units().map((u) => `<option ${u.name === st.map[n] ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>`;
+    const unitSel = (n) => `<select class="inp" data-map="${esc(n)}" style="height:36px"><option value="">— ไม่นำเข้า —</option>${editableUnits().map((u) => `<option ${u.name === st.map[n] ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>`;
     const mapRow = (n) => `<tr><td><b>${esc(n || '(ไม่มีคอลัมน์แขวง)')}</b></td><td class="r num">${cnt(n).length}</td><td class="r num">${mil(cnt(n).reduce((a, x) => a + x.plan.budget, 0))}</td><td>${unitSel(n)}</td></tr>`;
-    const changed = (r) => r.old && (r.old.work_name !== r.plan.work_name || Number(r.old.budget) !== r.plan.budget || r.old.segs.length !== r.segments.length) ? ' • มีการเปลี่ยนแปลง' : '';
+    const sum = (segs) => segs.map((s) => s.road + ' ' + kmRange(s) + ' ' + (s.side || '')).join(';');
+    const changed = (r) => !r.old ? '' : sum(r.old.segs) !== sum(r.segments) ? ' • กม. เปลี่ยน' : (r.old.work_name !== r.plan.work_name || Number(r.old.budget) !== r.plan.budget) ? ' • มีการเปลี่ยนแปลง' : '';
     dlg.innerHTML = `${modalHead('ตรวจสอบก่อนนำเข้า', st.file + ' • ' + all.length + ' แผนในไฟล์')}
       <div class="fgrid">
         <label class="f">ปีงบประมาณ<input class="inp" id="im-fy" value="${esc(st.fy)}" inputmode="numeric" maxlength="4"></label>
-        <label class="f">สำนัก (ไฟล์นี้)<select class="inp" id="im-office">${offices().map((o) => `<option ${o.short === st.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>
+        ${st.sheet.col.office !== undefined ? '<span class="small muted" style="align-self:end;padding-bottom:12px">สำนัก: อ่านจากคอลัมน์ "สำนัก" ในไฟล์</span>' : `<label class="f">สำนัก (ไฟล์นี้)<select class="inp" id="im-office">${offices().map((o) => `<option ${o.short === st.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>`}
         <label class="row small" style="gap:8px;align-self:end;padding-bottom:10px;cursor:pointer"><input type="checkbox" id="im-up" ${st.update ? 'checked' : ''} style="width:18px;height:18px">อัปเดตแผนที่มี ID เดียวกันอยู่แล้ว (สถานะเดิมคงไว้)</label>
       </div>
       <section class="col" style="gap:6px"><b class="small">แขวงในไฟล์ → หน่วยงานในระบบ</b>
@@ -468,12 +539,12 @@ function importDialog(app) {
       <div class="row wrap"><span class="tag green">แผนใหม่ ${nNew}</span>${nUp ? `<span class="tag" style="background:var(--blue-soft);color:#3B5A78">อัปเดต ${nUp}</span>` : ''}${bad.length ? `<span class="tag red">ข้าม ${bad.length}</span>` : ''}<span class="faint">งบรวม ${money(ok.reduce((a, r) => a + r.plan.budget, 0))} บาท</span></div>
       ${res.length ? `<div class="scroll-x" style="max-height:40vh;border:1px solid var(--line2);border-radius:16px"><table class="tbl"><thead><tr><th>แถว</th><th>หน่วยงาน</th><th>ID CODE</th><th>รหัสงาน</th><th>กิจกรรม</th><th>ชื่องาน</th><th>ช่วง</th><th class="r">งบประมาณ</th><th>ผลตรวจ</th></tr></thead>
       <tbody>${res.map((r) => `<tr style="background:${r.err ? '#FCF1EC' : ''}"><td>${r.line}</td><td>${esc(r.plan.unit)}</td><td class="num">${esc(r.plan.id_code)}</td><td class="num">${esc(r.plan.work_code)}</td><td class="small">${esc(r.plan.activity)}</td><td class="small">${esc(r.plan.work_name)}</td><td class="small num">${r.segments.map((s) => esc(s.road) + ' ' + kmRange(s)).join('<br>')}</td><td class="r num">${money(r.plan.budget)}</td>
-        <td style="color:${r.err ? 'var(--red)' : r.mode === 'update' ? '#3B5A78' : 'var(--green-ink)'};font-weight:600;white-space:nowrap">${esc(r.err || (r.mode === 'update' ? '↻ อัปเดต ' + r.plan.plan_id + changed(r) : '✓ ใหม่'))}</td></tr>`).join('')}</tbody></table></div>` : ''}
+        <td style="color:${r.err ? 'var(--red)' : r.mode === 'update' ? '#3B5A78' : 'var(--green-ink)'};font-weight:600;white-space:nowrap">${esc(r.err || (r.mode === 'update' ? '↻ อัปเดต ' + r.plan.plan_id + changed(r) : '✓ ใหม่'))}${!r.err && r.warn ? `<br><span class="small" style="color:var(--gold-ink);font-weight:500">⚠ ${esc(r.warn)}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
       <span class="err" id="im-err"></span>
       <div class="dlg-foot"><button class="btn" id="im-back">เลือกไฟล์ใหม่</button><button class="btn pri" id="im-go" ${ok.length ? '' : 'disabled'}>นำเข้า ${ok.length} แผน</button></div>`;
     $('#im-back', dlg).onclick = () => { st.sheet = null; draw(dlg); };
     $('#im-fy', dlg).onchange = (e) => { st.fy = Number(e.target.value) || st.fy; draw(dlg); };
-    $('#im-office', dlg).onchange = (e) => { st.office = e.target.value; draw(dlg); };
+    if ($('#im-office', dlg)) $('#im-office', dlg).onchange = (e) => { st.office = e.target.value; draw(dlg); };
     $('#im-up', dlg).onchange = (e) => { st.update = e.target.checked; draw(dlg); };
     $$('[data-map]', dlg).forEach((el) => (el.onchange = () => {
       st.map[el.dataset.map] = el.value;
@@ -483,8 +554,8 @@ function importDialog(app) {
     $('#im-go', dlg).onclick = async () => {
       const b = $('#im-go', dlg); busy(b);
       try {
-        const r = await call('bulkPlans', { items: ok.map((x) => ({ plan: x.plan, segments: x.segments })) });
-        mergeSaved(r.saved);
+        const r = await call('bulkPlans', { items: ok.map((x) => ({ plan: x.plan, segments: x.segments })), file: st.file });
+        mergeSaved(r.saved); r.saved.forEach((s) => { if (s.kmLog) S.db.KmLog.push(s.kmLog); });
         closeModal(); toast(`นำเข้าแล้ว ${r.saved.length} แผน (ใหม่ ${nNew} • อัปเดต ${nUp})${bad.length ? ' • ข้าม ' + bad.length : ''}`);
         if (r.saved[0]) ui.year = Number(r.saved[0].plan.fiscal_year);
         app.refresh();
@@ -518,7 +589,8 @@ export function detail(main, id, app) {
   <section class="card"><div class="stepper" style="--n:${ST.length}">${ST.map((s, i) => { const now = s.status_code === p.status, done = i < curIdx && reached.has(s.status_code); return `<div class="s ${now ? 'now' : done ? 'done' : ''}" style="--c:${esc(s.color)}"><div class="dotw"><span class="ln ${i > 0 && i <= curIdx ? 'on' : ''}" style="${i === 0 ? 'visibility:hidden' : ''}"></span><span class="dt">${done ? '✓' : i + 1}</span><span class="ln ${i < curIdx ? 'on' : ''}" style="${i === ST.length - 1 ? 'visibility:hidden' : ''}"></span></div><span style="font-weight:${now ? 600 : 400}">${esc(s.name)}</span></div>`; }).join('')}</div></section>
   <div class="grid g2">
     <div class="col" style="gap:14px">
-      <section class="card"><h2>ช่วงสายทาง (${p.segs.length})</h2>${p.segs.length ? `<div class="scroll-x"><table class="tbl"><thead><tr><th>ทางหลวง</th><th>ตอน</th><th>ชื่อตอน</th><th>กม.เริ่มต้น</th><th>กม.สิ้นสุด</th><th>ระยะ</th><th>ทางหลัก</th><th>ทางขนาน</th></tr></thead><tbody>${p.segs.map((s) => `<tr><td><b>${esc(s.road)}</b></td><td class="num">${esc(s.control || '')}</td><td class="small">${esc(s.section || '')}</td><td class="num">${kmText(s.km_from_m)}</td><td class="num">${Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '—'}</td><td class="num">${((s.km_to_m - s.km_from_m) / 1000).toFixed(3)} กม.</td><td>${esc(s.side)}</td><td>${esc(s.parallel || '')}</td></tr>`).join('')}</tbody></table></div>` : '<span class="faint">งานอาคาร / ไม่ระบุสายทาง</span>'}</section>
+      <section class="card"><div class="row" style="margin-bottom:8px"><h2 class="grow" style="margin:0">ช่วงสายทาง (${p.segs.length})</h2>${mayEdit(p) ? `<button class="btn sm" id="pd-km">${icon('ruler', 14)}แก้ไข กม.</button>` : ''}</div>${p.segs.length ? `<div class="scroll-x"><table class="tbl"><thead><tr><th>ทางหลวง</th><th>ตอน</th><th>ชื่อตอน</th><th>กม.เริ่มต้น</th><th>กม.สิ้นสุด</th><th>ระยะ</th><th>ทางหลัก</th><th>ทางขนาน</th></tr></thead><tbody>${p.segs.map((s) => `<tr><td><b>${esc(s.road)}</b></td><td class="num">${esc(s.control || '')}</td><td class="small">${esc(s.section || '')}</td><td class="num">${kmText(s.km_from_m)}</td><td class="num">${Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '—'}</td><td class="num">${((s.km_to_m - s.km_from_m) / 1000).toFixed(3)} กม.</td><td>${esc(s.side)}</td><td>${esc(s.parallel || '')}</td></tr>`).join('')}</tbody></table></div>` : '<span class="faint">งานอาคาร / ไม่ระบุสายทาง</span>'}
+        ${p.kmlogs.length ? `<details style="margin-top:10px"><summary class="small" style="cursor:pointer">ประวัติแก้ไข กม. (${p.kmlogs.length})</summary>${kmHistory(p)}</details>` : ''}</section>
       <section class="card col" style="gap:10px"><h2 style="margin:0">ประวัติการเปลี่ยนสถานะ</h2>${p.logs.length ? p.logs.slice().reverse().map((l) => `<div class="row" style="align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:${esc(statusOf(l.to_status).color)};margin-top:6px;flex-shrink:0"></span><div class="col grow" style="gap:2px"><div class="row"><b class="small grow">${esc(statusOf(l.to_status).name)}</b><span class="faint">${thDateTime(l.at)}</span></div><span class="faint">${esc((userOf(l.by_user) || {}).full_name || l.by_user || '')}</span>${l.reason ? `<span class="small" style="background:var(--gold-soft);color:var(--gold-ink);border-radius:12px;padding:6px 10px;align-self:flex-start">รอบที่ ${esc(l.round_no || '')}: ${esc(l.reason)}</span>` : ''}</div></div>`).join('') : '<span class="faint">ยังไม่มีการเปลี่ยนสถานะ</span>'}</section>
     </div>
     <div class="col" style="gap:14px">
@@ -527,12 +599,14 @@ export function detail(main, id, app) {
         <label class="f" style="color:#DCE0CF">เหตุผล / หมายเหตุ <span id="pd-need"></span><textarea class="inp" id="pd-reason" style="background:#566A51;color:#fff;border-color:#687A62" placeholder="บังคับเมื่อส่งกลับแก้ไข"></textarea></label>
         <span class="err" id="pd-err" style="color:#F4C9B8"></span><button class="btn" id="pd-go" style="background:var(--gold);border-color:var(--gold);color:#3E4F3B;font-weight:600" disabled>เลือกสถานะก่อน</button>` : '<span class="small" style="color:#DCE0CF">การเปลี่ยนสถานะทำโดยผู้ตรวจที่รับผิดชอบหน่วยงานนี้</span>'}
       </section>
+      ${p.supervisor || p.contractor ? `<section class="card col" style="gap:4px">${p.supervisor ? `<span class="small"><span class="faint">ผู้ควบคุมงาน:</span> ${esc(p.supervisor)}</span>` : ''}${p.contractor ? `<span class="small"><span class="faint">ผู้รับจ้าง:</span> ${esc(p.contractor)}</span>` : ''}</section>` : ''}
       <section class="card row">${rev ? avatar(rev, 46) : ''}<div class="col grow" style="gap:0"><span class="faint">ผู้ตรวจรับผิดชอบ ${esc(p.unit)}</span><b>${esc(rev ? rev.full_name + ' • ' + rev.position : '— (งานของเขต)')}</b></div></section>
       <section class="card col" style="gap:8px"><div class="row"><h3 class="grow">ไฟล์ที่ผูกกับแผนนี้</h3><a href="#/files" class="small">คลังเอกสาร</a></div>${files.length ? files.map((f) => `<a class="row small" href="${esc(f.drive_url)}" target="_blank" rel="noopener">${icon('file', 18)}<span class="grow">${esc(f.name)}</span>${icon('ext', 14)}</a>`).join('') : '<span class="faint">ยังไม่มีไฟล์ — ผูกไฟล์ได้จากหน้าคลังเอกสาร</span>'}</section>
     </div>
   </div>`;
   if ($('#pd-edit')) $('#pd-edit').onclick = () => planForm(p, app);
   if ($('#pd-del')) $('#pd-del').onclick = () => deletePlan(p, app);
+  if ($('#pd-km')) $('#pd-km').onclick = () => kmForm(p, app);
   let to = '';
   on(main, '[data-to]', 'click', (e, b) => {
     to = b.dataset.to; main.querySelectorAll('[data-to]').forEach((x) => { const on_ = x === b; x.style.background = on_ ? '#FFFEFB' : 'transparent'; x.style.color = on_ ? '#3E4F3B' : '#FFFEFB'; });
@@ -548,4 +622,62 @@ export function detail(main, id, app) {
       S.db.StatusLog.push(r.log); toast('บันทึกแล้ว → ' + statusOf(to).name); app.refresh();
     } catch (x) { $('#pd-err').textContent = x.message; busy(go, false); }
   };
+}
+
+/* ---------- แก้ไข กม. (ช่วงสายทาง) หลังลงทะเบียน — เก็บประวัติ ---------- */
+function kmForm(p, app) {
+  if (!p) return;
+  let segs = p.segs.map((s) => ({ road: s.road, control: s.control || '', section: s.section || '', from: kmText(s.km_from_m), to: Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '', side: s.side || '', parallel: s.parallel || '' }));
+  if (!segs.length) segs.push(newSeg());
+  let note = '';
+  const draw = (dlg) => {
+    dlg.innerHTML = `${modalHead('แก้ไข กม. • ' + (p.id_code || p.work_code || p.plan_id), p.work_name)}
+      <div class="note grey small">ตอนนี้: ${esc(p.segs.map((s) => s.road + ' ' + kmRange(s) + (s.side ? ' ' + s.side : '')).join(' • ') || 'ไม่ระบุสายทาง')}</div>
+      <div class="col" style="background:var(--soft);border-radius:20px;padding:12px;gap:8px">
+        <div class="segrow segh faint"><span>ทางหลวง</span><span>ตอนควบคุม</span><span>ชื่อตอน</span><span>กม.เริ่มต้น</span><span>กม.สิ้นสุด</span><span>ทางหลัก</span><span>ทางขนาน</span><span></span></div>
+        ${segs.map((s, i) => `<div class="segrow" data-seg="${i}">
+          <input class="inp" data-s="road" value="${esc(s.road)}" placeholder="ทล.101" aria-label="ทางหลวง"><input class="inp" data-s="control" value="${esc(s.control)}" placeholder="0101" aria-label="ตอนควบคุม">
+          <input class="inp" data-s="section" value="${esc(s.section)}" placeholder="ชื่อตอน" aria-label="ชื่อตอน">
+          <input class="inp" data-s="from" value="${esc(s.from)}" placeholder="1+000" aria-label="กม.เริ่มต้น"><input class="inp" data-s="to" value="${esc(s.to)}" placeholder="3+000" aria-label="กม.สิ้นสุด">
+          <input class="inp" data-s="side" value="${esc(s.side)}" list="km-sides" aria-label="ทางหลัก"><input class="inp" data-s="parallel" value="${esc(s.parallel)}" list="km-sides" aria-label="ทางขนาน">
+          <button class="icon-btn" data-rm="${i}" aria-label="ลบช่วง" ${segs.length < 2 ? 'disabled' : ''}>${icon('x', 16)}</button></div>`).join('')}
+        <datalist id="km-sides">${SIDES.map((a) => `<option value="${a}">`).join('')}</datalist>
+        <button class="btn sm" id="km-add" style="align-self:flex-start">${icon('plus', 14)}เพิ่มช่วง</button>
+      </div>
+      <label class="f">เหตุผลที่แก้ไข<input class="inp" id="km-note" value="${esc(note)}" placeholder="เช่น ปรับช่วงตามวงเงินที่ได้รับ / ผลสำรวจ"></label>
+      ${p.kmlogs.length ? `<details><summary class="small" style="cursor:pointer">ประวัติแก้ไข กม. ${p.kmlogs.length} ครั้ง</summary>${kmHistory(p)}</details>` : ''}
+      <span class="err" id="km-err"></span>
+      <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="km-save">บันทึก กม.</button></div>`;
+    const keep = () => { $$('[data-seg]', dlg).forEach((r) => $$('[data-s]', r).forEach((el) => (segs[r.dataset.seg][el.dataset.s] = el.value))); note = $('#km-note', dlg).value; };
+    on(dlg, '[data-rm]', 'click', (e, b) => { keep(); segs.splice(Number(b.dataset.rm), 1); draw(dlg); });
+    $('#km-add', dlg).onclick = () => { keep(); const l = segs[segs.length - 1] || {}; segs.push({ ...newSeg(), road: l.road || '', control: l.control || '', section: l.section || '' }); draw(dlg); };
+    $('#km-save', dlg).onclick = async () => {
+      keep();
+      const err = $('#km-err', dlg), out = [];
+      $$('.inp-err', dlg).forEach((x) => x.classList.remove('inp-err'));
+      const bad = (sel, msg) => { const el = $(sel, dlg); if (el) { el.classList.add('inp-err'); el.focus(); } err.textContent = msg; };
+      for (let i = 0; i < segs.length; i++) {
+        const s = segs[i], row = `[data-seg="${i}"] `; if (!s.road && !s.from && !s.to) continue;
+        const a = kmParse(s.from), b = String(s.to).trim() ? kmParse(s.to) : a;
+        if (!String(s.road).trim()) return bad(row + '[data-s=road]', `ช่วงที่ ${i + 1}: ใส่หมายเลขทางหลวง`);
+        if (isNaN(a)) return bad(row + '[data-s=from]', `ช่วงที่ ${i + 1}: กม.เริ่มต้น "${s.from}" ไม่ถูกต้อง — ใช้รูปแบบ 12+345`);
+        if (isNaN(b)) return bad(row + '[data-s=to]', `ช่วงที่ ${i + 1}: กม.สิ้นสุด "${s.to}" ไม่ถูกต้อง`);
+        if (b < a) return bad(row + '[data-s=to]', `ช่วงที่ ${i + 1}: กม.สิ้นสุด ต้องไม่น้อยกว่า กม.เริ่มต้น`);
+        out.push({ road: roadName(String(s.road).trim()), control: String(s.control).trim(), section: String(s.section).trim(), km_from_m: a, km_to_m: b, side: String(s.side).trim(), parallel: String(s.parallel).trim() });
+      }
+      const b = $('#km-save', dlg); busy(b);
+      try {
+        const r = await call('editKm', { plan_id: p.plan_id, segments: out, note: note.trim() });
+        S.db.Segments = S.db.Segments.filter((s) => s.plan_id !== p.plan_id).concat(r.segments);
+        if (r.kmLog) S.db.KmLog.push(r.kmLog);
+        closeModal(); toast(r.kmLog ? 'บันทึก กม. แล้ว • เก็บประวัติแล้ว' : 'ไม่มีการเปลี่ยนแปลง กม.'); app.refresh();
+      } catch (x) { err.textContent = x.message; busy(b, false); }
+    };
+  };
+  modal('', { wide: true, onMount: draw });
+}
+function kmHistory(p) {
+  return `<div class="col" style="gap:8px;margin-top:8px">${p.kmlogs.slice().reverse().map((l) => `<div class="small" style="border-left:3px solid var(--line);padding-left:10px">
+    <div class="row wrap" style="gap:6px"><b>${thDateTime(l.at)}</b><span class="faint">${esc((userOf(l.by_user) || {}).full_name || l.by_user || '')}</span>${l.note ? `<span class="tag">${esc(l.note)}</span>` : ''}</div>
+    <div class="faint">จาก: ${esc(l.before || '—')}</div><div>เป็น: <b>${esc(l.after || '—')}</b></div></div>`).join('')}</div>`;
 }

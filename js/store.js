@@ -5,7 +5,7 @@ export const S = { user: null, perms: {}, cfg: {}, db: {}, ui: {} };
 
 export function load(data) {
   S.user = data.user; S.perms = data.perms || {}; S.cfg = data.cfg || {};
-  S.db = Object.assign({ Plans: [], Segments: [], StatusLog: [], Meetings: [], MeetingAttendees: [], Orders: [], OrderAssignees: [], Files: [], Users: [], Fuel: [], Leaves: [], Trips: [], RefDocs: [], MatDocs: [], MatPrices: [] }, data.db || {});
+  S.db = Object.assign({ Plans: [], Segments: [], StatusLog: [], Meetings: [], MeetingAttendees: [], Orders: [], OrderAssignees: [], Files: [], Users: [], Fuel: [], Leaves: [], Trips: [], RefDocs: [], KmLog: [], MatDocs: [], MatPrices: [] }, data.db || {});
   cache = null;
 }
 let cache = null;
@@ -21,6 +21,10 @@ export const offices = () => cfg('Offices').filter((o) => truthy(o.active) || o.
 export const statuses = () => cfg('Status').slice().sort(by('sort'));
 export const statusOf = (code) => statuses().find((s) => s.status_code === code) || { status_code: code, name: code, color: '#C9C1AE', dash_group: 'ยังไม่ส่ง' };
 export const unitOf = (name) => cfg('Units').find((u) => u.name === name) || {};
+/** ลงทะเบียน/แก้ไขแผนของหน่วยงานนี้ได้ไหม: บทบาทมีสิทธิ์ edit_plan (ทุกหน่วยงาน) หรือเป็นผู้ตรวจของหน่วยงานนั้น — ตรงกับ planGate ในหลังบ้าน */
+export const canEditUnit = (name) => can('edit_plan') || (!!S.user && !!name && unitOf(name).reviewer_id === S.user.user_id);
+export const editableUnits = () => units().filter((u) => canEditUnit(u.name));
+export const canAddPlan = () => editableUnits().length > 0;
 export const userOf = (id) => S.db.Users.find((u) => u.user_id === id) || null;
 export const setting = (k, d = '') => { const r = cfg('Settings').find((x) => x.key === k); return r ? r.value : d; };
 
@@ -34,7 +38,8 @@ export function currentFY() {
 /** แผนพร้อมค่าที่คำนวณ: ผู้ตรวจ ช่วงสายทาง รอบส่งกลับ เลยกำหนด ส่งแล้ว */
 export function plans() {
   if (cache) return cache;
-  const segBy = {}, logBy = {};
+  const segBy = {}, logBy = {}, kmBy = {};
+  (S.db.KmLog || []).forEach((l) => (kmBy[l.plan_id] = kmBy[l.plan_id] || []).push(l));
   S.db.Segments.forEach((s) => (segBy[s.plan_id] = segBy[s.plan_id] || []).push(s));
   S.db.StatusLog.forEach((l) => (logBy[l.plan_id] = logBy[l.plan_id] || []).push(l));
   const reasonCodes = statuses().filter((s) => truthy(s.need_reason)).map((s) => s.status_code);
@@ -52,7 +57,7 @@ export function plans() {
     const { khwaeng, khet } = stages(st, sendbacks.length);
     return Object.assign({}, p, {
       fiscal_year: Number(p.fiscal_year), budget: Number(p.budget) || 0,
-      reviewer: u.reviewer_id || '', isKhet, st, segs, logs, sent, round, due, khwaeng, khet,
+      reviewer: u.reviewer_id || '', isKhet, st, segs, logs, kmlogs: (kmBy[p.plan_id] || []).sort(by('at')), sent, round, due, khwaeng, khet,
       late: !!(due && unsent && due < t), rounds: sendbacks.length, reasons: sendbacks.map((l, i) => `รอบ ${l.round_no || i + 1}: ${l.reason || '—'}`),
       length_km: segs.reduce((a, s) => a + Math.max(0, (Number(s.km_to_m) - Number(s.km_from_m)) / 1000), 0)
     });
