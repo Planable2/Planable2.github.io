@@ -1,10 +1,10 @@
 // ===== ทะเบียนแผน: แยกปีงบ › หน่วยงาน, ลงทะเบียน/แก้ไข, นำเข้า Excel, รายละเอียด + อัปเดตสถานะ =====
-import { S, plans, planYears, defaultYear, units, offices, statuses, statusOf, unitOf, userOf, can, isAdmin, currentFY, cfg, KHWAENG_STAGES, canEditUnit, editableUnits, canAddPlan } from '../store.js';
+import { S, plans, planYears, defaultYear, units, offices, statuses, statusOf, unitOf, userOf, can, isAdmin, currentFY, cfg, KHWAENG_STAGES, canEditUnit, editableUnits, canAddPlan, planStatuses, procStatuses, approvedStatus, isProcStatus } from '../store.js';
 import { call } from '../api.js';
 import { esc, $, $$, on, money, mil, num, kmText, kmParse, thDate, thDateTime, debounce, loadXLSX } from '../util.js';
 import { modal, modalHead, closeModal, toast, busy, avatar, statusPill, icon, empty } from '../ui.js';
 
-const ui = { year: null, q: '', unit: 'all', office: 'all', status: 'all', kw: 'all', kh: 'all', open: {} };
+const ui = { year: null, q: '', unit: 'all', office: 'all', status: 'all', kw: 'all', kh: 'all', pr: 'all', open: {} };
 
 export function view(main, arg, app) {
   main._app = app;
@@ -29,9 +29,10 @@ export function view(main, arg, app) {
     <div class="fx">
     <select id="p-unit" aria-label="หน่วยงาน"><option value="all">ทุกหน่วยงาน</option>${units().map((u) => `<option ${u.name === ui.unit ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}</select>
     <select id="p-office" aria-label="สำนัก"><option value="all">ทุกสำนัก</option>${offices().map((o) => `<option ${o.short === ui.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select>
-    <select id="p-status" aria-label="สถานะ"><option value="all">ทุกสถานะ</option>${statuses().map((s) => `<option value="${s.status_code}" ${s.status_code === ui.status ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}<option value="fix" ${ui.status === 'fix' ? 'selected' : ''}>มีส่งกลับแก้ไข</option><option value="late" ${ui.status === 'late' ? 'selected' : ''}>เลยกำหนดรอบส่ง</option></select>
+    <select id="p-status" aria-label="สถานะ"><option value="all">ทุกสถานะ</option>${statusOptions(ui.status)}<option value="fix" ${ui.status === 'fix' ? 'selected' : ''}>มีส่งกลับแก้ไข</option><option value="late" ${ui.status === 'late' ? 'selected' : ''}>เลยกำหนดรอบส่ง</option></select>
     <select id="p-kw" aria-label="สถานะแขวง"><option value="all">สถานะแขวง: ทั้งหมด</option>${KHWAENG_STAGES.map((s) => `<option ${s === ui.kw ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
     <select id="p-kh" aria-label="สถานะเขต"><option value="all">สถานะเขต: ทั้งหมด</option>${khetKeys().map((s) => `<option ${s === ui.kh ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+    ${procStatuses().length ? `<select id="p-pr" aria-label="สถานะจัดซื้อจัดจ้าง"><option value="all">จัดซื้อจัดจ้าง: ทั้งหมด</option><option value="wait" ${ui.pr === 'wait' ? 'selected' : ''}>รอเริ่มจัดซื้อ</option>${procStatuses().map((s) => `<option value="${esc(s.status_code)}" ${s.status_code === ui.pr ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>` : ''}
     <button class="btn sm" id="p-clear">ล้าง</button>
     </div>
     <span class="right row"><button class="btn sm" id="p-cols">${icon('cols', 14)}เลือกคอลัมน์</button><button class="btn sm" id="p-ex">ขยายทั้งหมด</button><button class="btn sm" id="p-co">ย่อทั้งหมด</button></span>
@@ -42,9 +43,9 @@ export function view(main, arg, app) {
   draw();
   $('#p-year').onchange = (e) => { ui.year = Number(e.target.value); view(main, arg, app); };
   $('#p-q').oninput = debounce((e) => { ui.q = e.target.value; draw(); }, 200);
-  ['unit', 'office', 'status', 'kw', 'kh'].forEach((k) => ($('#p-' + k).onchange = (e) => { ui[k] = e.target.value; $('#p-ftog').textContent = 'ตัวกรอง' + (nFilt() ? ` (${nFilt()})` : ''); draw(); }));
+  ['unit', 'office', 'status', 'kw', 'kh', 'pr'].filter((k) => $('#p-' + k)).forEach((k) => ($('#p-' + k).onchange = (e) => { ui[k] = e.target.value; $('#p-ftog').textContent = 'ตัวกรอง' + (nFilt() ? ` (${nFilt()})` : ''); draw(); }));
   $('#p-ftog').onclick = () => { ui.fopen = !ui.fopen; $('#p-filt').classList.toggle('open', ui.fopen); $('#p-ftog').setAttribute('aria-expanded', ui.fopen); };
-  $('#p-clear').onclick = () => { Object.assign(ui, { q: '', unit: 'all', office: 'all', status: 'all', kw: 'all', kh: 'all' }); view(main, arg, app); };
+  $('#p-clear').onclick = () => { Object.assign(ui, { q: '', unit: 'all', office: 'all', status: 'all', kw: 'all', kh: 'all', pr: 'all' }); view(main, arg, app); };
   $('#p-ex').onclick = () => { units().forEach((u) => (ui.open[u.name] = true)); draw(); };
   $('#p-co').onclick = () => { ui.open = {}; ui.forceClosed = true; draw(); };
   $('#p-cols').onclick = () => colPicker(main);
@@ -56,16 +57,24 @@ export function view(main, arg, app) {
 }
 
 /** จำนวนตัวกรองที่เลือกอยู่ (แสดงบนปุ่ม "ตัวกรอง" ในมือถือ) */
-const nFilt = () => ['unit', 'office', 'status', 'kw', 'kh'].filter((k) => ui[k] !== 'all').length;
+const nFilt = () => ['unit', 'office', 'status', 'kw', 'kh', 'pr'].filter((k) => ui[k] !== 'all').length;
+/** ตัวเลือกสถานะแบ่ง 2 กลุ่ม: สถานะแผน • สถานะจัดซื้อจัดจ้าง */
+function statusOptions(cur, list) {
+  const g = (l) => l.map((s) => `<option value="${esc(s.status_code)}" ${s.status_code === cur ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  const pl = (list || statuses()).filter((s) => !isProcStatus(s)), pr = (list || statuses()).filter(isProcStatus);
+  return pr.length ? `<optgroup label="สถานะแผน">${g(pl)}</optgroup><optgroup label="สถานะจัดซื้อจัดจ้าง">${g(pr)}</optgroup>` : g(pl);
+}
+/** สถานะที่ใช้กับแผนนี้ได้ (แผนของเขต/ของแขวง) */
+const statusesFor = (p) => statuses().filter((s) => s.scope === 'ทั้งหมด' || !s.scope || (p.isKhet ? s.scope !== 'แผนของแขวง' : s.scope !== 'แผนของเขต'));
 
 /** ตัวเลือกสถานะเขตตามลำดับขั้น (จากสถานะในตั้งค่า) */
-const khetKeys = () => ['รอแขวงส่ง', 'ระหว่างตรวจ', 'ส่งแก้ไข'].concat(statuses().filter((s) => s.dash_group !== 'ยังไม่ส่ง' && s.dash_group !== 'แขวงส่งแล้ว').map((s) => s.name));
+const khetKeys = () => ['รอแขวงส่ง', 'ระหว่างตรวจ', 'ส่งแก้ไข'].concat(planStatuses().filter((s) => s.dash_group !== 'ยังไม่ส่ง' && s.dash_group !== 'แขวงส่งแล้ว').map((s) => s.name));
 
 function filtered() {
   const q = ui.q.trim().toLowerCase();
   return plans().filter((p) => p.fiscal_year === ui.year
     && (ui.unit === 'all' || p.unit === ui.unit) && (ui.office === 'all' || p.office === ui.office)
-    && (ui.kw === 'all' || p.khwaeng.key === ui.kw) && (ui.kh === 'all' || p.khet.key === ui.kh)
+    && (ui.kw === 'all' || p.khwaeng.key === ui.kw) && (ui.kh === 'all' || p.khet.key === ui.kh) && (ui.pr === 'all' || p.procStage.key === ui.pr)
     && (ui.status === 'all' || (ui.status === 'fix' ? p.rounds > 0 : ui.status === 'late' ? p.late : p.status === ui.status))
     && (!q || [p.plan_id, p.id_code, p.work_code, p.work_name, p.unit, p.office, p.activity, p.province].concat(p.segs.flatMap((s) => [s.road, 'ทล.' + String(s.road).replace(/^ทล\.?\s*/, ''), s.control, s.section])).join(' ').toLowerCase().includes(q)));
 }
@@ -77,58 +86,71 @@ const segCol = (fn) => (p) => (p.segs.length ? p.segs.map((s) => `<div class="se
 const segText = (p) => (p.segs.length ? p.segs.map((s) => `<div><b>${esc(s.road)}</b> ${kmRange(s)} <span class="faint">${esc(s.side)}</span></div>`).join('') : '<span class="faint">ไม่ระบุสายทาง</span>');
 const stagePill = (s) => `<span class="pill" style="--c:${esc(s.color)}">${esc(s.label)}</span>`;
 const COLDEF = [
-  { k: 'idcode', l: 'ID CODE', w: 92, cls: 'num', td: (p) => esc(p.id_code || '') },
-  { k: 'code', l: 'รหัสงาน', w: 72, cls: 'num', td: (p) => esc(p.work_code || '') },
-  { k: 'activity', l: 'กิจกรรมตาม พ.ร.บ.', w: 170, cls: 'small', td: (p) => esc(p.activity || '') },
-  { k: 'office', l: 'สำนัก', w: 80, td: (p) => esc(p.office), off: true },
-  { k: 'province', l: 'จังหวัด', w: 90, td: (p) => esc(p.province || '') },
-  { k: 'sthl', l: 'สทล.', w: 60, cls: 'num', td: (p) => esc(p.sthl || ''), off: true },
-  { k: 'road', l: 'ทางหลวง', w: 92, cls: 'num', td: segCol((s) => `<b>${esc(s.road)}</b>`) },
-  { k: 'control', l: 'ตอนควบคุม', w: 74, cls: 'num', td: segCol((s) => esc(s.control || '')) },
-  { k: 'section', l: 'ชื่อตอน', w: 170, cls: 'small', td: segCol((s) => esc(s.section || '')), off: true },
-  { k: 'km', l: 'กม. (ดำเนินการ)', w: 176, cls: 'num', td: segCol(kmRange) },
-  { k: 'side', l: 'ทางหลัก', w: 70, cls: 'small', td: segCol((s) => esc(s.side || '')) },
-  { k: 'parallel', l: 'ทางขนาน', w: 70, cls: 'small', td: segCol((s) => esc(s.parallel || '')), off: true },
-  { k: 'segs', l: 'สายทาง • กม. • ฝั่ง (รวม)', w: 220, cls: 'num', td: segText, off: true },
-  { k: 'name', l: 'ชื่องาน (ชื่อตอน พ.ร.บ.)', w: 260, td: (p) => `<a href="#/plan/${esc(p.plan_id)}" style="color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;font-weight:500">${esc(p.work_name)}</a>` },
-  { k: 'length', l: 'ระยะทาง (กม.)', w: 100, cls: 'r num', td: (p) => (p.length_km ? p.length_km.toFixed(3) : '<span class="faint">—</span>'), off: true },
-  { k: 'budget', l: 'งบประมาณ (บาท)', w: 120, cls: 'r num', td: (p) => money(p.budget) },
-  { k: 'round', l: 'รอบส่ง / กำหนด', w: 116, td: (p) => { const noDue = !p.round && !(cfg('Offices').find((o) => o.short === p.office) || {}).has_round; return `<span class="small" style="color:${p.late ? 'var(--red)' : 'var(--muted)'}">${noDue ? 'ไม่มีกำหนด' : p.round ? esc(p.round.name) + ' • ' + thDate(p.round.due_date) : '—'}${p.late ? ' • เลยกำหนด' : ''}</span>`; }, off: true },
-  { k: 'khwaeng', l: 'สถานะแขวง', w: 120, td: (p) => stagePill(p.khwaeng) },
-  { k: 'khet', l: 'สถานะเขต', w: 128, td: (p) => stagePill(p.khet) },
-  { k: 'status', l: 'สถานะในระบบ', w: 140, td: (p) => statusPill(p.status), off: true },
+  { k: 'idcode', l: 'ID CODE', w: 84, cls: 'num', td: (p) => esc(p.id_code || '') },
+  { k: 'code', l: 'รหัสงาน', w: 70, cls: 'num', td: (p) => esc(p.work_code || '') },
+  { k: 'activity', l: 'กิจกรรมตาม พ.ร.บ.', h: 'กิจกรรม พ.ร.บ.', w: 130, cls: 'small', td: (p) => esc(p.activity || '') },
+  { k: 'office', l: 'สำนัก', w: 76, td: (p) => esc(p.office), off: true },
+  { k: 'province', l: 'จังหวัด', w: 80, td: (p) => esc(p.province || ''), off: true },
+  { k: 'sthl', l: 'สทล.', w: 52, cls: 'num', td: (p) => esc(p.sthl || ''), off: true },
+  { k: 'road', l: 'ทางหลวง', w: 80, cls: 'num', td: segCol((s) => `<b>${esc(s.road)}</b>`) },
+  { k: 'control', l: 'ตอนควบคุม', h: 'ตอน', w: 62, cls: 'num', td: segCol((s) => esc(s.control || '')) },
+  { k: 'section', l: 'ชื่อตอน', w: 140, cls: 'small', td: segCol((s) => `<span title="${esc(s.section || '')}">${esc(s.section || '')}</span>`) },
+  { k: 'km', l: 'กม. (ดำเนินการ)', h: 'กม.', w: 160, cls: 'num small', td: segCol(kmRange) },
+  { k: 'side', l: 'ทางหลัก', w: 64, cls: 'small', td: segCol((s) => esc(s.side || '')) },
+  { k: 'parallel', l: 'ทางขนาน', w: 62, cls: 'small', td: segCol((s) => esc(s.parallel || '')), off: true },
+  { k: 'segs', l: 'สายทาง • กม. • ฝั่ง (รวม)', w: 200, cls: 'num', td: segText, off: true },
+  { k: 'name', l: 'ชื่องาน (ชื่อตอน พ.ร.บ.)', w: 220, cls: 'small', td: (p) => esc(p.work_name), off: true },
+  { k: 'length', l: 'ระยะทาง (กม.)', w: 80, cls: 'r num', td: (p) => (p.length_km ? p.length_km.toFixed(3) : '<span class="faint">—</span>'), off: true },
+  { k: 'budget', l: 'งบประมาณ (บาท)', h: 'งบประมาณ', w: 104, cls: 'r num', td: (p) => money(p.budget) },
+  { k: 'round', l: 'รอบส่ง / กำหนด', w: 110, td: (p) => { const noDue = !p.round && !(cfg('Offices').find((o) => o.short === p.office) || {}).has_round; return `<span class="small" style="color:${p.late ? 'var(--red)' : 'var(--muted)'}">${noDue ? 'ไม่มีกำหนด' : p.round ? esc(p.round.name) + ' • ' + thDate(p.round.due_date) : '—'}${p.late ? ' • เลยกำหนด' : ''}</span>`; }, off: true },
+  { k: 'khwaeng', l: 'สถานะแขวง', w: 100, td: (p) => stagePill(p.khwaeng) },
+  { k: 'khet', l: 'สถานะเขต', w: 120, td: (p) => stagePill(p.khet) },
+  { k: 'proc', l: 'สถานะจัดซื้อจัดจ้าง', h: 'จัดซื้อจัดจ้าง', w: 124, td: (p) => (p.procStage.color ? stagePill(p.procStage) : '<span class="faint">—</span>'), when: () => procStatuses().length > 0 },
+  { k: 'status', l: 'อัปเดตสถานะ', w: 178, td: statusCell },
   { k: 'rounds', l: 'ส่งกลับแก้', w: 70, td: (p) => (p.rounds ? `<span class="tag gold" data-tip="${esc('ส่งกลับแก้ ' + p.rounds + ' รอบ|' + p.reasons.join('|'))}">${p.rounds} รอบ</span>` : '<span class="faint">—</span>') },
-  { k: 'supervisor', l: 'ผู้ควบคุมงาน', w: 120, cls: 'small', td: (p) => esc(p.supervisor || ''), off: true },
-  { k: 'contractor', l: 'ผู้รับจ้าง', w: 140, cls: 'small', td: (p) => esc(p.contractor || ''), off: true },
-  { k: 'kmlog', l: 'แก้ กม.', w: 70, td: (p) => (p.kmlogs.length ? `<span class="tag" data-tip="${esc('แก้ไข กม. ' + p.kmlogs.length + ' ครั้ง|ล่าสุด: ' + p.kmlogs[p.kmlogs.length - 1].after)}">${p.kmlogs.length} ครั้ง</span>` : '<span class="faint">—</span>'), off: true },
-  { k: 'note', l: 'หมายเหตุ', w: 180, td: (p) => esc(p.note || ''), off: true },
-  { k: 'id', l: 'เลขที่แผน', w: 120, cls: 'num small', td: (p) => esc(p.plan_id), off: true }
-];const COL_KEY = 'plan-cols-3';
+  { k: 'supervisor', l: 'ผู้ควบคุมงาน', w: 110, cls: 'small', td: (p) => esc(p.supervisor || ''), off: true },
+  { k: 'contractor', l: 'ผู้รับจ้าง', w: 120, cls: 'small', td: (p) => esc(p.contractor || ''), off: true },
+  { k: 'kmlog', l: 'แก้ กม.', w: 62, td: (p) => (p.kmlogs.length ? `<span class="tag" data-tip="${esc('แก้ไข กม. ' + p.kmlogs.length + ' ครั้ง|ล่าสุด: ' + p.kmlogs[p.kmlogs.length - 1].after)}">${p.kmlogs.length} ครั้ง</span>` : '<span class="faint">—</span>'), off: true },
+  { k: 'note', l: 'หมายเหตุ', w: 150, cls: 'small', td: (p) => esc(p.note || ''), off: true },
+  { k: 'id', l: 'เลขที่แผน', w: 110, cls: 'num small', td: (p) => esc(p.plan_id), off: true }
+];
+const COL_KEY = 'plan-cols-4';
 function shownCols() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(COL_KEY) || 'null'); } catch (e) {}
-  return COLDEF.filter((c) => (Array.isArray(saved) ? saved.includes(c.k) : !c.off));
+  return COLDEF.filter((c) => (!c.when || c.when()) && (Array.isArray(saved) ? saved.includes(c.k) : !c.off));
 }
 function saveCols(keys) { try { localStorage.setItem(COL_KEY, JSON.stringify(keys)); } catch (e) {} }
 /** แก้ไข/ลบได้: มีสิทธิ์ลงทะเบียนแผน • ปีงบที่ปิดแล้วเฉพาะผู้ดูแลระบบ */
 const mayEdit = (p) => canEditUnit(p.unit) && (Number(p.fiscal_year) >= currentFY() || isAdmin());
+/** อัปเดตสถานะได้: บุคลากรภายในทุกคน */
+const mayStatus = () => can('view_internal');
+/** ช่องสถานะในตาราง: เลือกแล้วต้องกด "บันทึก" (กันกดพลาด) */
+function statusCell(p) {
+  if (!mayStatus()) return statusPill(p.status);
+  return `<span class="st-edit"><select class="inp" data-st="${esc(p.plan_id)}" aria-label="สถานะของ ${esc(p.id_code || p.plan_id)}">${statusOptions(p.status, statusesFor(p))}</select><button class="btn sm pri" data-sts="${esc(p.plan_id)}" hidden>บันทึก</button></span>`;
+}
+/** บอกผู้ตรวจของแขวง: ผู้ดูแลระบบ / หัวหน้า / ธุรการ เปลี่ยนได้จากหัวกลุ่ม */
+const mayReviewer = () => isAdmin() || ['หัวหน้า', 'ธุรการ'].includes(S.user.role);
 
 function drawList(main) {
   const list = filtered(), yearAll = plans().filter((p) => p.fiscal_year === ui.year), ST = statuses();
   const g = (fn) => yearAll.filter(fn).length;
   $('#p-sum').innerHTML = [
     ['all', 'แผนทั้งหมด', yearAll.length, mil(yearAll.reduce((a, p) => a + p.budget, 0)) + ' ลบ.'],
-    ['s-unsent', 'ยังไม่ส่ง', g((p) => p.st.dash_group === 'ยังไม่ส่ง'), ''],
+    ['s-unsent', 'ยังไม่ส่ง', g((p) => p.pg === 'ยังไม่ส่ง'), ''],
     ['fix', 'มีส่งกลับแก้ไข', g((p) => p.rounds > 0), ''],
-    ['s-dept', 'ส่งกรมแล้ว', g((p) => ['ส่งกรมแล้ว', 'กรมเห็นชอบ'].includes(p.st.dash_group)), 'เห็นชอบ ' + g((p) => p.st.dash_group === 'กรมเห็นชอบ')],
+    ['s-dept', 'ส่งกรมแล้ว', g((p) => ['ส่งกรมแล้ว', 'กรมเห็นชอบ'].includes(p.pg)), 'เห็นชอบ ' + g((p) => p.pg === 'กรมเห็นชอบ')],
     ['late', 'เลยกำหนดรอบส่ง', g((p) => p.late), '']
   ].map((k) => `<button class="kpi ${ui.status === k[0] ? 'sel' : ''}" data-k="${k[0]}" ${k[0] === 'late' && k[2] ? 'style="background:var(--red-soft);color:var(--red)"' : ''}><span class="l">${esc(k[1])}</span><span class="v">${k[2]}</span><span class="s">${esc(k[3])}</span></button>`).join('');
   on($('#p-sum'), '[data-k]', 'click', (e, b) => { const k = b.dataset.k; ui.status = k === 'all' ? 'all' : k === 's-unsent' ? (ST.find((s) => s.dash_group === 'ยังไม่ส่ง') || {}).status_code || 'all' : k === 's-dept' ? (ST.find((s) => s.dash_group === 'ส่งกรมแล้ว') || {}).status_code || 'all' : k; $('#p-status').value = ui.status; drawList(main); });
-  $('#p-count').textContent = `ปีงบ ${ui.year} • แสดง ${list.length} จาก ${yearAll.length} แผน • งบประมาณ ${money(list.reduce((a, p) => a + p.budget, 0))} บาท`;
-  const filtering = ui.q || ui.status !== 'all' || ui.office !== 'all' || ui.unit !== 'all' || ui.kw !== 'all' || ui.kh !== 'all';
+  $('#p-count').textContent = `ปีงบ ${ui.year} • แสดง ${list.length} จาก ${yearAll.length} แผน • งบประมาณ ${money(list.reduce((a, p) => a + p.budget, 0))} บาท • คลิกแถวเพื่อดูรายละเอียด`;
+  const filtering = ui.q || ui.status !== 'all' || ui.office !== 'all' || ui.unit !== 'all' || ui.kw !== 'all' || ui.kh !== 'all' || ui.pr !== 'all';
   const box = $('#p-groups');
   if (!list.length) { box.innerHTML = empty('ไม่พบแผนตามตัวกรองในปีงบ ' + ui.year); return; }
-  const cols = shownCols(), act = canAddPlan(), width = cols.reduce((a, c) => a + c.w, 0) + (act ? 112 : 0);
+  // ความกว้างคอลัมน์เป็นสัดส่วน → ตารางพอดีความกว้างจอ (ไม่ต้องเลื่อนซ้ายขวาบนคอม)
+  const cols = shownCols(), act = canAddPlan() || mayStatus(), total = cols.reduce((a, c) => a + c.w, 0) + (act ? 46 : 0);
+  const pc = (w) => ((w / total) * 100).toFixed(2) + '%';
   box.innerHTML = units().map((u, ui_) => {
     const l = list.filter((p) => p.unit === u.name);
     if (!l.length) return '';
@@ -136,34 +158,73 @@ function drawList(main) {
     const c = ST.map((s) => l.filter((p) => p.status === s.status_code).length), sent = l.filter((p) => p.sent).length, late = l.filter((p) => p.late).length;
     const rev = userOf(u.reviewer_id);
     return `<section class="grp ${open ? 'open' : ''}" data-u="${esc(u.name)}">
-      <button class="gh" aria-expanded="${open}"><span class="chev">${icon('chev', 18)}</span><b style="font-family:var(--head);font-size:18px;font-weight:500;min-width:84px">${esc(u.name)}</b>
+      <div class="gh-row"><button class="gh" aria-expanded="${open}"><span class="chev">${icon('chev', 18)}</span><b style="font-family:var(--head);font-size:18px;font-weight:500;min-width:84px">${esc(u.name)}</b>
         <span class="small muted">${l.length} แผน • ${mil(l.reduce((a, p) => a + p.budget, 0))} ลบ.</span>
         <span class="track" style="flex:1 1 140px;max-width:260px;height:10px">${c.map((v, i) => `<span style="flex-grow:${v};flex-basis:0;display:${v ? 'block' : 'none'};background:${ST[i].color}" data-tip="${esc(ST[i].name + '|' + v + ' แผน')}"></span>`).join('')}</span>
         <span class="small" style="font-weight:600;color:${sent / l.length < 0.85 ? 'var(--gold-ink)' : 'var(--green-ink)'}">${u.kind === 'เขต' ? 'ส่งกรมแล้ว' : 'ส่งแล้ว'} ${sent}/${l.length}</span>
-        ${late ? `<span class="tag red">เลยกำหนด ${late}</span>` : ''}
-        <span class="right row small muted">ผู้ตรวจ ${rev ? avatar(rev, 28) + '<b style="color:var(--ink);font-weight:500">' + esc(rev.full_name) + '</b>' : '—'}</span></button>
-      ${open ? `<div class="gb scroll-x"><table class="tbl ptbl" style="min-width:${width}px;table-layout:fixed">
-        <colgroup>${cols.map((c) => `<col style="width:${c.w}px">`).join('')}${act ? '<col style="width:112px">' : ''}</colgroup>
-        <thead><tr>${cols.map((c, i) => `<th class="${c.cls && c.cls.includes('r') ? 'r' : ''}" ${i === 0 ? 'style="padding-left:18px"' : ''}>${esc(c.l)}</th>`).join('')}${act ? '<th class="stick-r"></th>' : ''}</tr></thead>
-        <tbody>${l.map((p) => `<tr>${cols.map((c, i) => `<td class="${c.cls || ''}" ${i === 0 ? 'style="padding-left:18px"' : ''}>${c.td(p)}</td>`).join('')}${act ? `<td class="r stick-r" style="white-space:nowrap">${mayEdit(p) ? `<button class="icon-btn sm" data-km="${esc(p.plan_id)}" title="แก้ไข กม." aria-label="แก้ไข กม.">${icon('ruler', 16)}</button><button class="icon-btn sm" data-edit="${esc(p.plan_id)}" title="แก้ไขแผน" aria-label="แก้ไขแผน">${icon('edit', 16)}</button><button class="icon-btn sm" data-del="${esc(p.plan_id)}" title="ลบแผน" aria-label="ลบแผน" style="color:var(--red)">${icon('trash', 16)}</button>` : ''}</td>` : ''}</tr>`).join('')}</tbody></table></div>` : ''}
+        ${late ? `<span class="tag red">เลยกำหนด ${late}</span>` : ''}</button>
+        <span class="gh-rev small muted">ผู้ตรวจ ${rev ? avatar(rev, 28) + '<b style="color:var(--ink);font-weight:500">' + esc(rev.full_name) + '</b>' : '—'}${mayReviewer() && u.kind !== 'เขต' ? `<button class="icon-btn sm" data-rev="${esc(u.name)}" title="เปลี่ยนผู้ตรวจ" aria-label="เปลี่ยนผู้ตรวจของ ${esc(u.name)}">${icon('edit', 15)}</button>` : ''}</span></div>
+      ${open ? `<div class="gb scroll-x"><table class="tbl ptbl">
+        <colgroup>${cols.map((c) => `<col style="width:${pc(c.w)}">`).join('')}${act ? `<col style="width:${pc(46)}">` : ''}</colgroup>
+        <thead><tr>${cols.map((c, i) => `<th class="${c.cls && c.cls.includes('r') ? 'r' : ''}" title="${esc(c.l)}" ${i === 0 ? 'style="padding-left:16px"' : ''}>${esc(c.h || c.l)}</th>`).join('')}${act ? '<th class="stick-r"></th>' : ''}</tr></thead>
+        <tbody>${l.map((p) => `<tr data-plan="${esc(p.plan_id)}">${cols.map((c, i) => `<td class="${c.cls || ''}" ${i === 0 ? 'style="padding-left:16px"' : ''}>${c.td(p)}</td>`).join('')}${act ? `<td class="r stick-r"><button class="icon-btn sm" data-edit="${esc(p.plan_id)}" title="แก้ไข (แผน • กม. • สถานะ)" aria-label="แก้ไขแผน">${icon('edit', 16)}</button></td>` : ''}</tr>`).join('')}</tbody></table></div>` : ''}
     </section>`;
   }).join('');
-  on(box, '.gh', 'click', (e, b) => { const n = b.parentElement.dataset.u; ui.open[n] = !b.parentElement.classList.contains('open'); drawList(main); });
+  on(box, '.gh', 'click', (e, b) => { const n = b.closest('.grp').dataset.u; ui.open[n] = !b.closest('.grp').classList.contains('open'); drawList(main); });
   const find = (id) => plans().find((p) => p.plan_id === id);
-  on(box, '[data-edit]', 'click', (e, b) => planForm(find(b.dataset.edit), main._app));
-  on(box, '[data-km]', 'click', (e, b) => kmForm(find(b.dataset.km), main._app));
-  on(box, '[data-del]', 'click', (e, b) => deletePlan(find(b.dataset.del), main._app));
+  on(box, '[data-edit]', 'click', (e, b) => editHub(find(b.dataset.edit), main._app));
+  on(box, '[data-rev]', 'click', (e, b) => reviewerForm(b.dataset.rev, main._app));
+  // คลิกตรงไหนของแถวก็เปิดรายละเอียด (ยกเว้นปุ่ม/ช่องเลือก)
+  on(box, 'tr[data-plan]', 'click', (e, tr) => { if (e.target.closest('button, select, input, a, label, .st-edit')) return; location.hash = '#/plan/' + tr.dataset.plan; });
+  // สถานะในตาราง: เลือก → ปุ่มบันทึกขึ้น → กดบันทึก
+  $$('[data-st]', box).forEach((sel) => (sel.onchange = () => { const p = find(sel.dataset.st), btn = sel.nextElementSibling; const changed = sel.value !== p.status; btn.hidden = !changed; sel.classList.toggle('changed', changed); }));
+  on(box, '[data-sts]', 'click', (e, b) => {
+    const p = find(b.dataset.sts), to = b.previousElementSibling.value, st = statusOf(to);
+    if (st.need_reason === true || st.need_reason === 'TRUE') return statusForm(p, main._app, null, to);   // ต้องมีเหตุผล → เปิดฟอร์ม
+    saveStatus(p, to, '', b).then((ok) => ok && main._app.refresh());
+  });
+}
+
+/** บันทึกสถานะ (ใช้ร่วมกันทั้งตาราง ฟอร์ม และหน้ารายละเอียด) */
+async function saveStatus(p, to, reason, btn) {
+  busy(btn);
+  try {
+    const r = await call('changeStatus', { plan_id: p.plan_id, to, reason });
+    const i = S.db.Plans.findIndex((x) => x.plan_id === p.plan_id); S.db.Plans[i] = Object.assign({}, S.db.Plans[i], { status: r.plan.status });
+    S.db.StatusLog.push(r.log); toast(`${p.id_code || p.plan_id} → ${statusOf(to).name}`);
+    return true;
+  } catch (x) { toast(x.message, 'err'); busy(btn, false); return false; }
+}
+
+/** เปลี่ยนผู้ตรวจของแขวง */
+function reviewerForm(unit, app) {
+  const u = unitOf(unit), people = S.db.Users.filter((x) => x.role !== 'ผู้เยี่ยมชม' && x.status !== 'locked');
+  modal(`${modalHead('ผู้ตรวจของ ' + unit, 'ผู้ตรวจรับผิดชอบแผนของแขวงนี้ • แสดงชื่อในทะเบียนแผนและหน้ารายละเอียด')}
+    <label class="f">ผู้ตรวจ<select class="inp" id="rv-u"><option value="">— ไม่กำหนด —</option>${people.map((x) => `<option value="${esc(x.user_id)}" ${x.user_id === u.reviewer_id ? 'selected' : ''}>${esc(x.full_name)} • ${esc(x.position || x.role)}</option>`).join('')}</select></label>
+    <span class="err" id="rv-err"></span>
+    <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="rv-save">บันทึก</button></div>`, {
+    onMount: (dlg) => {
+      $('#rv-save', dlg).onclick = async (e) => {
+        const b = e.currentTarget, id = $('#rv-u', dlg).value; busy(b);
+        try {
+          const r = await call('setReviewer', { unit, reviewer_id: id });
+          const i = S.cfg.cfg_Units.findIndex((x) => x.name === unit); if (i >= 0) S.cfg.cfg_Units[i] = Object.assign({}, S.cfg.cfg_Units[i], r.unit);
+          closeModal(); toast('ผู้ตรวจของ ' + unit + ': ' + ((userOf(id) || {}).full_name || 'ไม่กำหนด')); app.refresh();
+        } catch (x) { $('#rv-err', dlg).textContent = x.message; busy(b, false); }
+      };
+    }
+  });
 }
 
 /** เลือกคอลัมน์ที่แสดงในตาราง */
 function colPicker(main) {
-  const cur = new Set(shownCols().map((c) => c.k));
+  const cur = new Set(shownCols().map((c) => c.k)), DEF = COLDEF.filter((c) => !c.when || c.when());
   modal(`${modalHead('เลือกคอลัมน์ที่แสดง', 'จำไว้ในเครื่องนี้ • ส่งออก Excel ได้ทุกคอลัมน์เสมอ')}
-    <div class="col" style="gap:4px">${COLDEF.map((c) => `<label class="row" style="gap:10px;padding:6px 4px;cursor:pointer"><input type="checkbox" data-c="${c.k}" ${cur.has(c.k) ? 'checked' : ''} style="width:18px;height:18px">${esc(c.l)}</label>`).join('')}</div>
+    <div class="col" style="gap:4px">${DEF.map((c) => `<label class="row" style="gap:10px;padding:6px 4px;cursor:pointer"><input type="checkbox" data-c="${c.k}" ${cur.has(c.k) ? 'checked' : ''} style="width:18px;height:18px">${esc(c.l)}</label>`).join('')}</div>
     <div class="dlg-foot"><button class="btn" id="cp-reset">ค่าเริ่มต้น</button><button class="btn pri" id="cp-ok">ใช้คอลัมน์นี้</button></div>`, {
     onMount: (dlg) => {
       $('#cp-reset', dlg).onclick = () => { try { localStorage.removeItem(COL_KEY); } catch (e) {} closeModal(); drawList(main); };
-      $('#cp-ok', dlg).onclick = () => { const keys = $$('[data-c]', dlg).filter((x) => x.checked).map((x) => x.dataset.c); saveCols(keys.length ? keys : ['name']); closeModal(); drawList(main); };
+      $('#cp-ok', dlg).onclick = () => { const keys = $$('[data-c]', dlg).filter((x) => x.checked).map((x) => x.dataset.c); saveCols(keys.length ? keys : ['idcode']); closeModal(); drawList(main); };
     }
   });
 }
@@ -223,7 +284,7 @@ async function exportPlans(rows) {
 /* ---------- ฟอร์มลงทะเบียน / แก้ไข ---------- */
 const SIDES = ['LT+RT', 'LT', 'RT', 'MLR', 'FL', 'FR'];
 const newSeg = () => ({ road: '', control: '', section: '', from: '', to: '', side: 'LT+RT', parallel: '' });
-function planForm(plan, app) {
+function planForm(plan, app, host) {
   const isNew = !plan;
   const f = plan ? { ...plan, segs: plan.segs.map((s) => ({ road: s.road, control: s.control || '', section: s.section || '', from: kmText(s.km_from_m), to: Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '', side: s.side, parallel: s.parallel || '' })) }
     : { fiscal_year: Math.max(ui.year || 0, currentFY()), unit: defUnit(), office: '', id_code: '', work_code: '', work_name: '', activity: '', province: unitOf(defUnit()).province || '', sthl: '', budget: '', note: '', segs: [newSeg()] };
@@ -312,7 +373,7 @@ function planForm(plan, app) {
       } catch (x) { bad(/ID CODE/.test(x.message) ? '[data-k=id_code]' : /แขวง|หน่วยงาน/.test(x.message) ? '[data-k=unit]' : '', x.message); busy(btn, false); }
     };
   };
-  modal('', { wide: true, onMount: draw });
+  if (host) draw(host); else modal('', { wide: true, onMount: draw });
 }
 /** แขวงเริ่มต้นของฟอร์ม: แขวงที่ฉันเป็นผู้ตรวจ → แขวงแรกที่มีสิทธิ์ */
 function defUnit() {
@@ -569,9 +630,9 @@ function importDialog(app) {
 export function detail(main, id, app) {
   const p = plans().find((x) => x.plan_id === id);
   if (!p) { main.innerHTML = empty('ไม่พบแผน ' + id); return; }
-  const ST = statuses().filter((s) => s.scope === 'ทั้งหมด' || (p.isKhet ? s.scope !== 'แผนของแขวง' : s.scope !== 'แผนของเขต'));
-  const curIdx = ST.findIndex((s) => s.status_code === p.status);
+  const ST = statusesFor(p), PL = ST.filter((s) => !isProcStatus(s)), PR = ST.filter(isProcStatus);
   const reached = new Set(p.logs.map((l) => l.to_status).concat([p.status]));
+  const appr = approvedStatus().status_code;
   const rev = userOf(p.reviewer);
   const mayUpdate = can('view_internal');   // บุคลากรภายในทุกคนอัปเดตสถานะได้
   const files = S.db.Files.filter((f) => f.link_type === 'plan' && f.link_id === p.plan_id);
@@ -583,10 +644,12 @@ export function detail(main, id, app) {
     <div class="row wrap"><div class="kpi" style="background:var(--soft)"><span class="l">งบประมาณ (บาท)</span><span class="v" style="font-size:22px">${money(p.budget)}</span></div>
       <div class="kpi" style="background:var(--soft)"><span class="l">สถานะแขวง</span><span class="v" style="font-size:16px">${stagePill(p.khwaeng)}</span></div>
       <div class="kpi" style="background:var(--soft)"><span class="l">สถานะเขต</span><span class="v" style="font-size:16px">${stagePill(p.khet)}</span></div>
+      ${PR.length ? `<div class="kpi" style="background:var(--soft)"><span class="l">จัดซื้อจัดจ้าง</span><span class="v" style="font-size:16px">${p.procStage.color ? stagePill(p.procStage) : '<span class="faint">—</span>'}</span></div>` : ''}
       <div class="kpi" style="background:var(--soft)"><span class="l">รอบส่ง</span><span class="v" style="font-size:18px">${p.round ? esc(p.round.name) + ' • ' + thDate(p.round.due_date) : 'ไม่มีกำหนด'}</span></div></div>
-    ${mayEdit(p) ? `<div class="row"><button class="btn" id="pd-edit">${icon('edit', 16)}แก้ไขแผน</button><button class="btn danger" id="pd-del">${icon('trash', 16)}ลบ</button></div>` : ''}
+    ${mayEdit(p) || mayStatus() ? `<div class="row"><button class="btn pri" id="pd-edit">${icon('edit', 16)}แก้ไข</button>${mayEdit(p) ? `<button class="btn danger" id="pd-del">${icon('trash', 16)}ลบ</button>` : ''}</div>` : ''}
   </section>
-  <section class="card"><div class="stepper" style="--n:${ST.length}">${ST.map((s, i) => { const now = s.status_code === p.status, done = i < curIdx && reached.has(s.status_code); return `<div class="s ${now ? 'now' : done ? 'done' : ''}" style="--c:${esc(s.color)}"><div class="dotw"><span class="ln ${i > 0 && i <= curIdx ? 'on' : ''}" style="${i === 0 ? 'visibility:hidden' : ''}"></span><span class="dt">${done ? '✓' : i + 1}</span><span class="ln ${i < curIdx ? 'on' : ''}" style="${i === ST.length - 1 ? 'visibility:hidden' : ''}"></span></div><span style="font-weight:${now ? 600 : 400}">${esc(s.name)}</span></div>`; }).join('')}</div></section>
+  <section class="card col" style="gap:6px"><span class="faint">สถานะแผน</span>${stepper(PL, p.proc ? appr : p.status, reached)}</section>
+  ${PR.length ? `<section class="card col" style="gap:6px"><span class="faint">สถานะจัดซื้อจัดจ้าง ${p.pg === 'กรมเห็นชอบ' ? '' : '• เริ่มเมื่อกรมเห็นชอบแผน'}</span>${stepper([approvedStatus()].concat(PR), p.proc ? p.status : p.pg === 'กรมเห็นชอบ' ? appr : '', reached)}</section>` : ''}
   <div class="grid g2">
     <div class="col" style="gap:14px">
       <section class="card"><div class="row" style="margin-bottom:8px"><h2 class="grow" style="margin:0">ช่วงสายทาง (${p.segs.length})</h2>${mayEdit(p) ? `<button class="btn sm" id="pd-km">${icon('ruler', 14)}แก้ไข กม.</button>` : ''}</div>${p.segs.length ? `<div class="scroll-x"><table class="tbl"><thead><tr><th>ทางหลวง</th><th>ตอน</th><th>ชื่อตอน</th><th>กม.เริ่มต้น</th><th>กม.สิ้นสุด</th><th>ระยะ</th><th>ทางหลัก</th><th>ทางขนาน</th></tr></thead><tbody>${p.segs.map((s) => `<tr><td><b>${esc(s.road)}</b></td><td class="num">${esc(s.control || '')}</td><td class="small">${esc(s.section || '')}</td><td class="num">${kmText(s.km_from_m)}</td><td class="num">${Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '—'}</td><td class="num">${((s.km_to_m - s.km_from_m) / 1000).toFixed(3)} กม.</td><td>${esc(s.side)}</td><td>${esc(s.parallel || '')}</td></tr>`).join('')}</tbody></table></div>` : '<span class="faint">งานอาคาร / ไม่ระบุสายทาง</span>'}
@@ -595,7 +658,7 @@ export function detail(main, id, app) {
     </div>
     <div class="col" style="gap:14px">
       <section class="card col" style="background:var(--green);color:#FFFEFB;gap:12px"><div class="row"><h2 class="grow" style="margin:0">อัปเดตสถานะ</h2><span class="small" style="color:#C7CDB8">${mayUpdate ? 'ทุกคนอัปเดตได้ • บันทึกชื่อผู้เปลี่ยน' : 'ผู้เยี่ยมชมดูได้อย่างเดียว'}</span></div>
-        ${mayUpdate ? `<div class="row wrap">${ST.filter((s) => s.status_code !== p.status).map((s) => `<button class="btn sm" data-to="${esc(s.status_code)}" style="background:transparent;color:#FFFEFB;border-color:#7C8C76">${esc(s.name)}</button>`).join('')}</div>
+        ${mayUpdate ? `${[['สถานะแผน', PL], ['สถานะจัดซื้อจัดจ้าง', PR]].filter((g) => g[1].length).map((g) => `<span class="small" style="color:#C7CDB8">${g[0]}</span><div class="row wrap">${g[1].filter((s) => s.status_code !== p.status).map((s) => `<button class="btn sm" data-to="${esc(s.status_code)}" style="background:transparent;color:#FFFEFB;border-color:#7C8C76">${esc(s.name)}</button>`).join('')}</div>`).join('')}
         <label class="f" style="color:#DCE0CF">เหตุผล / หมายเหตุ <span id="pd-need"></span><textarea class="inp" id="pd-reason" style="background:#566A51;color:#fff;border-color:#687A62" placeholder="บังคับเมื่อส่งกลับแก้ไข"></textarea></label>
         <span class="err" id="pd-err" style="color:#F4C9B8"></span><button class="btn" id="pd-go" style="background:var(--gold);border-color:var(--gold);color:#3E4F3B;font-weight:600" disabled>เลือกสถานะก่อน</button>` : '<span class="small" style="color:#DCE0CF">เข้าสู่ระบบด้วยบัญชีบุคลากรเพื่ออัปเดตสถานะ</span>'}
       </section>
@@ -604,9 +667,9 @@ export function detail(main, id, app) {
       <section class="card col" style="gap:8px"><div class="row"><h3 class="grow">ไฟล์ที่ผูกกับแผนนี้</h3><a href="#/files" class="small">คลังเอกสาร</a></div>${files.length ? files.map((f) => `<a class="row small" href="${esc(f.drive_url)}" target="_blank" rel="noopener">${icon('file', 18)}<span class="grow">${esc(f.name)}</span>${icon('ext', 14)}</a>`).join('') : '<span class="faint">ยังไม่มีไฟล์ — ผูกไฟล์ได้จากหน้าคลังเอกสาร</span>'}</section>
     </div>
   </div>`;
-  if ($('#pd-edit')) $('#pd-edit').onclick = () => planForm(p, app);
+  if ($('#pd-edit')) $('#pd-edit').onclick = () => editHub(p, app);
   if ($('#pd-del')) $('#pd-del').onclick = () => deletePlan(p, app);
-  if ($('#pd-km')) $('#pd-km').onclick = () => kmForm(p, app);
+  if ($('#pd-km')) $('#pd-km').onclick = () => editHub(p, app, 'km');
   let to = '';
   on(main, '[data-to]', 'click', (e, b) => {
     to = b.dataset.to; main.querySelectorAll('[data-to]').forEach((x) => { const on_ = x === b; x.style.background = on_ ? '#FFFEFB' : 'transparent'; x.style.color = on_ ? '#3E4F3B' : '#FFFEFB'; });
@@ -625,7 +688,7 @@ export function detail(main, id, app) {
 }
 
 /* ---------- แก้ไข กม. (ช่วงสายทาง) หลังลงทะเบียน — เก็บประวัติ ---------- */
-function kmForm(p, app) {
+function kmForm(p, app, host) {
   if (!p) return;
   let segs = p.segs.map((s) => ({ road: s.road, control: s.control || '', section: s.section || '', from: kmText(s.km_from_m), to: Number(s.km_to_m) > Number(s.km_from_m) ? kmText(s.km_to_m) : '', side: s.side || '', parallel: s.parallel || '' }));
   if (!segs.length) segs.push(newSeg());
@@ -674,10 +737,57 @@ function kmForm(p, app) {
       } catch (x) { err.textContent = x.message; busy(b, false); }
     };
   };
-  modal('', { wide: true, onMount: draw });
+  if (host) draw(host); else modal('', { wide: true, onMount: draw });
 }
 function kmHistory(p) {
   return `<div class="col" style="gap:8px;margin-top:8px">${p.kmlogs.slice().reverse().map((l) => `<div class="small" style="border-left:3px solid var(--line);padding-left:10px">
     <div class="row wrap" style="gap:6px"><b>${thDateTime(l.at)}</b><span class="faint">${esc((userOf(l.by_user) || {}).full_name || l.by_user || '')}</span>${l.note ? `<span class="tag">${esc(l.note)}</span>` : ''}</div>
     <div class="faint">จาก: ${esc(l.before || '—')}</div><div>เป็น: <b>${esc(l.after || '—')}</b></div></div>`).join('')}</div>`;
+}
+
+/** แถบขั้นตอนสถานะ (ใช้ทั้งสถานะแผนและจัดซื้อจัดจ้าง) • ขั้นส่งกลับแก้ไข ✓ เฉพาะเมื่อเคยเกิดจริง */
+function stepper(list, cur, reached) {
+  const ci = list.findIndex((s) => s.status_code === cur);
+  return `<div class="stepper" style="--n:${list.length}">${list.map((s, i) => { const now = i === ci, done = i < ci && (reached.has(s.status_code) || !(s.need_reason === true || s.need_reason === 'TRUE')); return `<div class="s ${now ? 'now' : done ? 'done' : ''}" style="--c:${esc(s.color)}"><div class="dotw"><span class="ln ${i > 0 && i <= ci ? 'on' : ''}" style="${i === 0 ? 'visibility:hidden' : ''}"></span><span class="dt">${done ? '✓' : i + 1}</span><span class="ln ${i < ci ? 'on' : ''}" style="${i === list.length - 1 ? 'visibility:hidden' : ''}"></span></div><span style="font-weight:${now ? 600 : 400}">${esc(s.name)}</span></div>`; }).join('')}</div>`;
+}
+
+/** ปุ่ม "แก้ไข" ปุ่มเดียว: ข้อมูลแผน • แก้ไข กม. (เก็บเหตุผล) • อัปเดตสถานะ • ลบ */
+function editHub(p, app, tab) {
+  if (!p) return;
+  const tabs = [['plan', 'ข้อมูลแผน', mayEdit(p)], ['km', 'แก้ไข กม.', mayEdit(p)], ['status', 'อัปเดตสถานะ', mayStatus()]].filter((x) => x[2]);
+  if (!tabs.length) return;
+  let cur = tabs.some((x) => x[0] === tab) ? tab : tabs[0][0];
+  const draw = (dlg) => {
+    dlg.innerHTML = `<div class="hub-tabs">${tabs.map((x) => `<button class="chip ${x[0] === cur ? 'on' : ''}" data-tab="${x[0]}">${x[1]}</button>`).join('')}
+      ${mayEdit(p) ? `<button class="btn sm danger right" id="eh-del">${icon('trash', 14)}ลบแผน</button>` : ''}</div><div id="eh-body"></div>`;
+    dlg.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => { cur = b.dataset.tab; draw(dlg); }));
+    if ($('#eh-del', dlg)) $('#eh-del', dlg).onclick = () => deletePlan(p, app);
+    const body = $('#eh-body', dlg);
+    if (cur === 'plan') planForm(p, app, body); else if (cur === 'km') kmForm(p, app, body); else statusForm(p, app, body);
+  };
+  modal('', { wide: true, onMount: draw });
+}
+
+/** ฟอร์มอัปเดตสถานะ (สถานะแผน + จัดซื้อจัดจ้าง) • preset = สถานะที่เลือกมาจากตาราง */
+function statusForm(p, app, host, preset) {
+  const ST = statusesFor(p), groups = [['สถานะแผน', ST.filter((s) => !isProcStatus(s))], ['สถานะจัดซื้อจัดจ้าง', ST.filter(isProcStatus)]].filter((g) => g[1].length);
+  let to = preset || '';
+  const need = (c) => { const s = statusOf(c); return s.need_reason === true || s.need_reason === 'TRUE'; };
+  const draw = (dlg) => {
+    dlg.innerHTML = `${modalHead('อัปเดตสถานะ • ' + (p.id_code || p.work_code || p.plan_id), p.work_name)}
+      <div class="row wrap small"><span class="muted">ตอนนี้:</span>${statusPill(p.status)}${p.rounds ? `<span class="tag gold">ส่งกลับแก้ ${p.rounds} รอบ</span>` : ''}</div>
+      ${groups.map((g) => `<div class="col" style="gap:6px"><b class="small">${g[0]}</b><div class="st-pick">${g[1].map((s) => `<button class="st-opt ${s.status_code === to ? 'on' : ''} ${s.status_code === p.status ? 'cur' : ''}" data-to="${esc(s.status_code)}" style="--c:${esc(s.color)}" ${s.status_code === p.status ? 'disabled' : ''}><i></i>${esc(s.name)}</button>`).join('')}</div></div>`).join('')}
+      <label class="f">เหตุผล / หมายเหตุ ${to && need(to) ? '<b style="color:var(--red)">* ต้องระบุ (นับเป็นรอบส่งกลับ)</b>' : ''}<textarea class="inp" id="sf-reason" placeholder="บังคับเมื่อส่งกลับแก้ไข"></textarea></label>
+      <span class="err" id="sf-err"></span>
+      <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="sf-save" ${to ? '' : 'disabled'}>${to ? 'บันทึก: ' + esc(statusOf(to).name) : 'เลือกสถานะก่อน'}</button></div>`;
+    const reason = $('#sf-reason', dlg);
+    dlg.querySelectorAll('[data-to]').forEach((b) => (b.onclick = () => { const r = reason.value; to = b.dataset.to; draw(dlg); $('#sf-reason', dlg).value = r; }));
+    $('#sf-save', dlg).onclick = async (e) => {
+      const r = $('#sf-reason', dlg).value.trim();
+      if (need(to) && !r) { $('#sf-err', dlg).textContent = 'กรุณาระบุเหตุผล'; return $('#sf-reason', dlg).focus(); }
+      if (await saveStatus(p, to, r, e.currentTarget)) { closeModal(); app.refresh(); }
+    };
+    if (to && need(to)) reason.focus();
+  };
+  if (host) draw(host); else modal('', { onMount: draw });
 }

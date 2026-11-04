@@ -1,10 +1,11 @@
 :root {
-  --bg: #F6F3EC; --card: #FFFEFB; --soft: #FAF7F1; --soft2: #F1ECE1; --line: #E8E1D2; --line2: #F0EBE0;
-  --ink: #2B2A22; --ink2: #403D32; --muted: #5E5A4C; --muted2: #6E6857; --faint: #A39C88;
-  --green: #4A5D46; --green2: #4A6B42; --green-soft: #E7EEDF; --green-ink: #33502F;
-  --gold: #E8C77E; --gold-soft: #F6E9CF; --gold-ink: #6B4A10;
-  --red: #A8432A; --red-soft: #FBEDE7; --blue: #6585A6; --blue-soft: #E9EFF5;
-  --r: 22px; --shadow: 0 10px 28px rgba(74, 93, 70, .10);
+  /* โทนถนอมสายตา: พื้นหลังเทาอุ่น การ์ดขาวนวล (ไม่ขาวจ้า) ตัวอักษรเข้มแต่ไม่ดำสนิท */
+  --bg: #E9E6DE; --card: #F7F5EF; --soft: #F0EDE5; --soft2: #E6E1D6; --line: #DAD3C4; --line2: #E5E0D5;
+  --ink: #34332B; --ink2: #45423A; --muted: #615D51; --muted2: #6E6859; --faint: #9A9381;
+  --green: #4A5D46; --green2: #4A6B42; --green-soft: #DFE7D7; --green-ink: #33502F;
+  --gold: #DDBE7C; --gold-soft: #EFE3C9; --gold-ink: #6B4A10;
+  --red: #A1452F; --red-soft: #F3E3DC; --blue: #6585A6; --blue-soft: #E1E8EF;
+  --r: 22px; --shadow: 0 8px 24px rgba(60, 70, 55, .08);
   --ease: cubic-bezier(.4, 0, .6, 1); --ease2: cubic-bezier(.2, .7, .2, 1);
   --font: 'IBM Plex Sans Thai Looped', 'Sarabun', system-ui, sans-serif; --head: 'Mitr', 'IBM Plex Sans Thai Looped', sans-serif;
   color-scheme: light;
@@ -212,8 +213,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .kan .colk { background: var(--soft2); border-radius: 24px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .item { background: var(--card); border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; border-left: 5px solid var(--edge, var(--line)); animation: fadeUp .4s var(--ease2) both; }
 .grp { background: var(--card); border-radius: 22px; overflow: hidden; }
-.grp > button.gh { width: 100%; border: 0; background: transparent; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; text-align: left; }
-.grp > button.gh:hover { background: var(--soft); }
+.grp button.gh { width: 100%; border: 0; background: transparent; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; text-align: left; }
+.grp button.gh:hover { background: var(--soft); }
 .grp .chev { transition: transform .3s var(--ease); color: var(--muted); }
 .grp.open .chev { transform: rotate(90deg); }
 .grp .gb { border-top: 1px solid var(--line2); animation: fadeUp .3s var(--ease2) both; }
@@ -324,7 +325,7 @@ details.card > summary { cursor: pointer; list-style: revert; }
   .item { padding: 10px 12px; gap: 6px; border-radius: 16px; }
   .note { padding: 8px 12px; font-size: 12px; border-radius: 14px; }
   .tbl { font-size: 13px; } .tbl td, .tbl th { padding: 8px; }
-  .grp > button.gh { padding: 12px 14px; gap: 6px 10px; }
+  .grp button.gh { padding: 12px 14px; gap: 6px 10px; }
   .bottomnav { left: 10px; right: 10px; padding: 5px 4px; border-radius: 24px; }
   .bottomnav a { min-height: 44px; font-size: 10px; } .bottomnav a .pillbg { width: 42px; height: 26px; }
   .morelist a { padding: 12px 14px; }
@@ -394,3 +395,43 @@ details.card > summary { cursor: pointer; list-style: revert; }
   .rep-kinds { grid-template-columns: 1fr 1fr; } .rep-kind { padding: 8px 10px; }
   .rep-prev { max-height: 48vh; }
 }
+
+/* ===== ทะเบียนแผน: เต็มจอ • คลิกแถว • สถานะในตาราง • ปุ่มแก้ไขรวม ===== */
+[hidden] { display: none !important; }
+main.page.wide { max-width: none; padding-left: 24px; padding-right: 24px; }
+.ptbl { width: 100%; min-width: 1060px; table-layout: fixed; font-size: 13px; }
+.ptbl td, .ptbl th { padding: 8px 6px; overflow: hidden; }
+.ptbl th { white-space: nowrap; text-overflow: ellipsis; vertical-align: middle; }
+.h-filt label, .row > label.row { white-space: nowrap; }
+.ptbl td.small { font-size: 12.5px; }
+.ptbl tbody tr { cursor: pointer; }
+.ptbl tbody tr:hover td { background: var(--green-soft); }
+.ptbl .pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ptbl .stick-r { padding: 6px 4px; text-align: center; }
+.st-edit { display: flex; gap: 4px; align-items: center; }
+.st-edit select.inp { height: 32px; padding: 0 22px 0 8px; font-size: 12.5px; min-width: 0; flex: 1 1 auto; border-radius: 10px; }
+.st-edit select.changed { border-color: var(--gold-ink); background: var(--gold-soft); }
+.st-edit .btn.sm { height: 32px; padding: 0 10px; flex-shrink: 0; }
+.gh-row { display: flex; align-items: center; gap: 8px; padding-right: 18px; }
+.gh-row > .gh { flex: 1 1 auto; min-width: 0; }
+.gh-rev { display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap; }
+.hub-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line2); }
+.hub-tabs .right { margin-left: auto; }
+.st-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.st-opt { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+.st-opt i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.st-opt.on { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); background: color-mix(in srgb, var(--c) 16%, var(--card)); font-weight: 600; }
+.st-opt.cur { opacity: .55; cursor: default; }
+.rep-mode { float: right; font-family: var(--font); font-size: 12px; opacity: .8; }
+@media (max-width: 860px) {
+  main.page.wide { padding-left: 12px; padding-right: 12px; }
+  .gh-row { flex-wrap: wrap; padding: 0 14px 10px 0; } .gh-row > .gh { flex-basis: 100%; } .gh-rev { padding-left: 14px; }
+}
+
+/* ===== กันตัวหนังสือตกบรรทัด: ปุ่ม ป้าย ชิป หัวตาราง ไม่ขึ้นบรรทัดใหม่ ===== */
+.btn, .chip, .tag, .pill, .seg-ctl button, .seg-ctl a, .icon-btn, .tn-link, .legend span { white-space: nowrap; }
+.kpi .l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn { flex-shrink: 0; }
+.kpi .s { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#st-body .tbl td, #st-body .tbl th, .tbl td.r { white-space: nowrap; }
+.kpi .s, .card .muted.small { overflow-wrap: anywhere; }

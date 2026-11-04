@@ -106,6 +106,7 @@ function render() {
   shell(r);
   const main = $('#view');
   main.innerHTML = '';
+  main.classList.toggle('wide', name === 'plans');   // ทะเบียนแผนใช้ความกว้างเต็มจอ (คอลัมน์เยอะ)
   main.style.animation = 'none'; void main.offsetWidth; main.style.animation = '';
   window.scrollTo({ top: 0 });
   try { (r.fn ? r.mod[r.fn] : r.mod.view)(main, arg, app); }

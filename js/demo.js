@@ -1,6 +1,6 @@
 // ===== โหมดสาธิต: เลียนแบบ API ของ Apps Script ด้วยข้อมูลตัวอย่างในเครื่อง (localStorage) =====
 // โครงตาราง/ชื่อคอลัมน์ตรงกับไฟล์ ฐานข้อมูล_ระบบงานฝ่ายแผนงาน.xlsx ทุกตัว
-const KEY = 'plan-app-demo-v3';
+const KEY = 'plan-app-demo-v4';
 const pad = (n, l = 4) => String(n).padStart(l, '0');
 const nowIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}T${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:00`; };
 const T = (v) => v === true || v === 'TRUE';
@@ -13,7 +13,9 @@ function seed() {
     cfg_Units: UNITS.map((n, i) => ({ unit_id: 'U0' + (i + 1), name: n, short: i ? 'ข.' + i : 'เขต', kind: i ? 'แขวง' : 'เขต', province: ['แพร่', 'แพร่', 'แพร่', 'น่าน', 'น่าน', 'พะเยา', 'เชียงราย'][i], reviewer_id: REV[n], sort: i + 1, active: true })),
     cfg_Offices: OFF.map((n, i) => ({ office_id: 'O0' + (i + 1), short: n, full: n, scope: n === 'สร. (งานอาคาร)' ? 'เขต และแขวง' : 'เฉพาะแขวง', has_round: i < 5, sort: i + 1, active: true })),
     cfg_Rounds: [['สผ.', '2026-10-10'], ['สร.', '2026-10-31'], ['สร. (งานอาคาร)', '2026-10-31'], ['สป.', '2026-10-20'], ['สบ.', '2026-10-25']].map((r, i) => ({ round_id: 'R0' + (i + 1), fiscal_year: 2570, office: r[0], name: 'รอบ 1', due_date: r[1], remind_days: 3, active: true })),
-    cfg_Status: [['s0', 'อยู่ระหว่างจัดทำ', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของเขต', false], ['s1', 'รอแขวงส่ง', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของแขวง', false], ['s2', 'แขวงส่งแล้ว', '#6585A6', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s3', 'ระหว่างแก้ไข', '#D3A04A', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', true], ['s4', 'ส่งกรมแล้ว', '#5A9585', 'ส่งกรมแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s5', 'กรมเห็นชอบ', '#46703F', 'กรมเห็นชอบ', 'ผู้ตรวจ', 'ทั้งหมด', false]]
+    cfg_Status: [['s0', 'อยู่ระหว่างจัดทำ', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของเขต', false], ['s1', 'รอแขวงส่ง', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของแขวง', false], ['s2', 'แขวงส่งแล้ว', '#6585A6', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s3', 'ระหว่างแก้ไข', '#D3A04A', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', true], ['s4', 'ส่งกรมแล้ว', '#5A9585', 'ส่งกรมแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s5', 'กรมเห็นชอบ', '#46703F', 'กรมเห็นชอบ', 'ผู้ตรวจ', 'ทั้งหมด', false],
+      // สถานะจัดซื้อจัดจ้าง (dash_group อื่นนอกจาก 4 กลุ่มสถานะแผน)
+      ['s6', 'ร่าง TOR', '#B98A5E', 'ร่าง TOR', '', '', false], ['s7', 'ออกประกาศ', '#8C76A6', 'ออกประกาศ', '', '', false], ['s8', 'ได้ตัวผู้รับจ้าง', '#5D8AA8', 'ได้ตัวผู้รับจ้าง', '', '', false], ['s9', 'อนุมัติเงินงวด', '#5E9A8A', 'อนุมัติเงินงวด', '', '', false], ['s10', 'ลงนามสัญญา', '#3E6B55', 'ลงนามสัญญา', '', '', false]]
       .map((r, i) => ({ status_code: r[0], name: r[1], color: r[2], dash_group: r[3], who: r[4], scope: r[5], need_reason: r[6], sort: i })),
     cfg_MeetKinds: [['meet', 'ประชุม', '#6585A6', false, false, false], ['online', 'ประชุมออนไลน์', '#5A9585', true, false, false], ['field', 'กิจกรรม / ลงพื้นที่', '#D3A04A', false, false, true], ['inspect', 'ตรวจรับงาน', '#9A7A9C', false, true, true]]
       .map((r) => ({ kind_id: r[0], name: r[1], color: r[2], has_link: r[3], link_plan: r[4], offsite: r[5], active: true })),
@@ -87,7 +89,8 @@ function seed() {
         if (y === 2570 && ui === 1 && oi === 0 && k === 0) { code = '22000'; name = 'งานเสริมผิวแอสฟัลต์'; segs = [{ road: 'ทล.101', km_from_m: 1000, km_to_m: 3000, side: 'LT.,RT.' }, { road: 'ทล.1083', km_from_m: 5200, km_to_m: 6000, side: 'LT.' }]; budget = 4500000; cut = 4230000; g = 1; reasons = []; }
         if (y === 2570 && ui === 1 && oi === 0 && k === 1) { code = '22000'; name = 'งานเสริมผิวแอสฟัลต์'; segs = [{ road: 'ทล.11', km_from_m: 120000, km_to_m: 122500, side: 'RT.' }]; budget = 3200000; cut = 3200000; g = 2; reasons = ['ปริมาณงานไม่ตรงแบบ', 'ขาดภาพถ่ายสภาพทาง']; }
         if (y === 2570 && ui === 1 && oi === 0 && k === 11) { code = '21500'; name = 'งานฉาบผิวแอสฟัลต์ (Slurry Seal)'; segs = [{ road: 'ทล.1023', km_from_m: 12000, km_to_m: 18000, side: 'LT.,RT.' }]; budget = 2650000; cut = 2650000; g = 0; reasons = []; }
-        const status = g === 0 ? (ui === 0 ? 's0' : 's1') : 's' + (g + 1);
+        let status = g === 0 ? (ui === 0 ? 's0' : 's1') : 's' + (g + 1);
+        if (status === 's5' && k % 6) status = 's' + (5 + (k % 6));   // บางแผนเข้าขั้นจัดซื้อจัดจ้างแล้ว
         Plans.push({ plan_id: id, fiscal_year: y, unit: u, office: o, work_code: code, work_name: name, budget, budget_cut: cut, status, created_by: 'P06', created_at: `${y - 544}-09-25T11:00:00`, note: '' });
         segs.forEach((s, i) => Segments.push(Object.assign({ seg_id: id + '-S' + (i + 1), plan_id: id, seq: i + 1 }, s)));
         const base = new Date(y - 544, 9, 1);
@@ -287,6 +290,13 @@ const ACTIONS = {
     D.Files.forEach((f) => { if (f.link_type === 'plan' && f.link_id === id) { f.link_type = ''; f.link_id = ''; } });
     D.Meetings.forEach((m) => { if (m.plan_id === id) m.plan_id = ''; });
     persist(); return { plan_id: id };
+  },
+  setReviewer: (p, u) => {
+    if (!T(u.is_admin) && !['หัวหน้า', 'ธุรการ'].includes(u.role)) throw new Error('เปลี่ยนผู้ตรวจได้เฉพาะผู้ดูแลระบบ หัวหน้า หรือธุรการ');
+    const unit = db().cfg.cfg_Units.find((x) => x.name === p.unit);
+    if (!unit) throw new Error('ไม่พบหน่วยงาน ' + p.unit);
+    if (p.reviewer_id && !db().db.Users.some((x) => x.user_id === p.reviewer_id)) throw new Error('ไม่พบผู้ใช้ ' + p.reviewer_id);
+    unit.reviewer_id = p.reviewer_id || ''; persist(); return { unit };
   },
   changeStatus: (p, u) => {
     need(u, 'view_internal', 'ผู้เยี่ยมชมอัปเดตสถานะแผนไม่ได้');

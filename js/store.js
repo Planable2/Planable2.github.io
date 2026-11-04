@@ -19,6 +19,13 @@ export const can = (k) => isAdmin() || truthy(S.perms[k]);
 export const units = () => cfg('Units').filter((u) => truthy(u.active) || u.active === '').sort(by('sort'));
 export const offices = () => cfg('Offices').filter((o) => truthy(o.active) || o.active === '').sort(by('sort'));
 export const statuses = () => cfg('Status').slice().sort(by('sort'));
+/** สถานะ 2 กลุ่ม: สถานะแผน (dash_group 4 ค่านี้) • สถานะจัดซื้อจัดจ้าง (dash_group อื่น เช่น ร่าง TOR, ออกประกาศ …) */
+export const PLAN_GROUPS = ['ยังไม่ส่ง', 'แขวงส่งแล้ว', 'ส่งกรมแล้ว', 'กรมเห็นชอบ'];
+export const isProcStatus = (s) => !!s && !!s.dash_group && !PLAN_GROUPS.includes(s.dash_group);
+export const planStatuses = () => statuses().filter((s) => !isProcStatus(s));
+export const procStatuses = () => statuses().filter(isProcStatus);
+/** สถานะ "กรมเห็นชอบ" = ขั้นแรกของจัดซื้อจัดจ้าง (แผนที่อยู่ในขั้นจัดซื้อแล้ว นับว่าเห็นชอบแผนแล้ว) */
+export const approvedStatus = () => statuses().find((s) => s.dash_group === 'กรมเห็นชอบ') || { status_code: 's5', name: 'กรมเห็นชอบ', color: '#46703F', dash_group: 'กรมเห็นชอบ' };
 export const statusOf = (code) => statuses().find((s) => s.status_code === code) || { status_code: code, name: code, color: '#C9C1AE', dash_group: 'ยังไม่ส่ง' };
 export const unitOf = (name) => cfg('Units').find((u) => u.name === name) || {};
 /** ลงทะเบียน/แก้ไขแผนของหน่วยงานนี้ได้ไหม: บทบาทมีสิทธิ์ edit_plan (ทุกหน่วยงาน) หรือเป็นผู้ตรวจของหน่วยงานนั้น — ตรงกับ planGate ในหลังบ้าน */
@@ -50,14 +57,15 @@ export function plans() {
     const off = cfg('Offices').find((o) => o.short === p.office) || {};
     const round = truthy(off.has_round) ? cfg('Rounds').find((r) => Number(r.fiscal_year) === Number(p.fiscal_year) && r.office === p.office && (truthy(r.active) || r.active === '')) : null;
     const due = round ? toDate(round.due_date) : null;
-    const unsent = st.dash_group === 'ยังไม่ส่ง';
+    const proc = isProcStatus(st), pg = proc ? 'กรมเห็นชอบ' : (st.dash_group || 'ยังไม่ส่ง');   // pg = กลุ่มสถานะแผน
+    const unsent = pg === 'ยังไม่ส่ง';
     const isKhet = u.kind === 'เขต';
-    const sent = isKhet ? ['ส่งกรมแล้ว', 'กรมเห็นชอบ'].includes(st.dash_group) : !unsent;
+    const sent = isKhet ? ['ส่งกรมแล้ว', 'กรมเห็นชอบ'].includes(pg) : !unsent;
     const sendbacks = logs.filter((l) => reasonCodes.includes(l.to_status));
-    const { khwaeng, khet } = stages(st, sendbacks.length);
+    const { khwaeng, khet, procStage } = stages(st, sendbacks.length, pg, proc);
     return Object.assign({}, p, {
       fiscal_year: Number(p.fiscal_year), budget: Number(p.budget) || 0,
-      reviewer: u.reviewer_id || '', isKhet, st, segs, logs, kmlogs: (kmBy[p.plan_id] || []).sort(by('at')), sent, round, due, khwaeng, khet,
+      reviewer: u.reviewer_id || '', isKhet, st, pg, proc, procStage, segs, logs, kmlogs: (kmBy[p.plan_id] || []).sort(by('at')), sent, round, due, khwaeng, khet,
       late: !!(due && unsent && due < t), rounds: sendbacks.length, reasons: sendbacks.map((l, i) => `รอบ ${l.round_no || i + 1}: ${l.reason || '—'}`),
       length_km: segs.reduce((a, s) => a + Math.max(0, (Number(s.km_to_m) - Number(s.km_from_m)) / 1000), 0)
     });
@@ -69,15 +77,18 @@ export function plans() {
  *  แขวง = กำลังดำเนินการ (ยังไม่ส่ง/ถูกส่งกลับแก้) | ส่งแล้ว
  *  เขต  = ระหว่างตรวจ → ส่งแก้ไข → ตรวจรอบที่ 2 → แก้ไขรอบที่ 2 … → ส่งกรมแล้ว/กรมเห็นชอบ (สถานะอื่นใช้ชื่อตามตั้งค่า) */
 export const KHWAENG_STAGES = ['กำลังดำเนินการ', 'ส่งแล้ว'];
-function stages(st, n) {
-  const fix = truthy(st.need_reason), unsent = st.dash_group === 'ยังไม่ส่ง';
+function stages(st, n, pg, proc) {
+  const fix = truthy(st.need_reason), unsent = pg === 'ยังไม่ส่ง';
   const khwaeng = unsent || fix ? { label: fix ? 'กำลังแก้ไข' : 'กำลังดำเนินการ', key: 'กำลังดำเนินการ', color: fix ? '#D3A04A' : '#C9C1AE' } : { label: 'ส่งแล้ว', key: 'ส่งแล้ว', color: '#6585A6' };
   let khet;
   if (unsent) khet = { label: 'รอแขวงส่ง', key: 'รอแขวงส่ง', color: '#C9C1AE' };
   else if (fix) khet = { label: n > 1 ? `แก้ไขรอบที่ ${n}` : 'ส่งแก้ไข', key: 'ส่งแก้ไข', color: st.color };
-  else if (st.dash_group === 'แขวงส่งแล้ว') khet = { label: n ? `ตรวจรอบที่ ${n + 1}` : 'ระหว่างตรวจ', key: 'ระหว่างตรวจ', color: st.color };
+  else if (pg === 'แขวงส่งแล้ว') khet = { label: n ? `ตรวจรอบที่ ${n + 1}` : 'ระหว่างตรวจ', key: 'ระหว่างตรวจ', color: st.color };
+  else if (proc) { const a = approvedStatus(); khet = { label: a.name, key: a.name, color: a.color }; }
   else khet = { label: st.name, key: st.name, color: st.color };
-  return { khwaeng, khet };
+  // สถานะจัดซื้อจัดจ้าง: เริ่มนับเมื่อกรมเห็นชอบแผน
+  const procStage = proc ? { label: st.name, key: st.status_code, color: st.color } : pg === 'กรมเห็นชอบ' ? { label: 'รอเริ่มจัดซื้อ', key: 'wait', color: '#B9C3AE' } : { label: '—', key: 'none', color: '' };
+  return { khwaeng, khet, procStage };
 }
 
 export const planYears = () => Array.from(new Set(plans().map((p) => p.fiscal_year))).sort((a, b) => b - a);

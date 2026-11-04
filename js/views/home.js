@@ -1,11 +1,11 @@
 // ===== หน้าแรก / Dashboard =====
-import { S, plans, planYears, defaultYear, units, offices, statuses, isGuest, myOpenOrders, attendeesOf, currentFY, orderDone, assigneesOf } from '../store.js';
+import { S, plans, planYears, defaultYear, units, offices, statuses, procStatuses, isGuest, myOpenOrders, attendeesOf, currentFY, orderDone, assigneesOf } from '../store.js';
 import { esc, $, on, mil, money, thDate, toDate, today, daysBetween, TH_DOW, loadXLSX } from '../util.js';
 import { chart } from '../charts.js';
-import { officeHTML, summaryHTML, heatHTML, pendingHTML, imageDialog, uLabel, PROG } from '../report.js';
+import { officeHTML, summaryHTML, heatHTML, pendingHTML, imageDialog, uLabel, MODES, progOptions, defaultProg, seriesFor, codeFor, progOf } from '../report.js';
 import { modal, modalHead, avatarStack, icon, toast } from '../ui.js';
 
-const ui = { year: null, type: 'office', measure: 'count', prog: 'dept', unit: 'all', office: 'all', cb: null };
+const ui = { year: null, type: 'office', mode: 'plan', measure: 'count', prog: '', unit: 'all', office: 'all', cb: null };
 // มุมมองสถานะแผน: ตาราง (รายงาน) + กราฟ
 const VIEWS_T = [['office', 'ตารางแยกสำนัก'], ['sum', 'ตารางสรุป'], ['heat', 'ตารางสี'], ['pending', 'แผนค้าง']];
 const VIEWS_C = [['stack', 'แท่งแนวนอน'], ['col', 'แท่งแนวตั้ง'], ['donut', 'วงกลม'], ['prog', '% ส่งแล้ว']];
@@ -19,7 +19,9 @@ export function view(main, arg, app) {
   const set = yearPlans.filter((p) => (ui.unit === 'all' || p.unit === ui.unit) && (ui.office === 'all' || p.office === ui.office));
   const ST = statuses(), money_ = ui.measure === 'budget';
   const sum = (l, f) => l.reduce((a, p) => a + f(p), 0);
-  const grp = (g) => set.filter((p) => p.st.dash_group === g);
+  const grp = (g) => set.filter((p) => p.pg === g);
+  if (!progOptions(ui.mode).some((c) => c.k === ui.prog)) ui.prog = defaultProg(ui.mode);
+  const PS = procStatuses(), lastProc = PS[PS.length - 1], inProc = set.filter((p) => p.proc), signed = lastProc ? set.filter((p) => p.status === lastProc.status_code) : [];
   const late = yearPlans.filter((p) => p.late);
   const lateBy = {}; late.forEach((p) => (lateBy[p.unit] = (lateBy[p.unit] || 0) + 1));
 
@@ -36,20 +38,22 @@ export function view(main, arg, app) {
   ${ui.year < fy ? `<div class="note grey">ปีงบ ${ui.year} ปิดแล้ว — ดูและส่งออกได้ แก้ไขได้เฉพาะผู้ดูแลระบบ</div>` : ''}
   ${!years.length ? `<div class="empty">ยังไม่มีแผนในทะเบียน — เริ่มจากหน้าทะเบียนแผน (ลงทะเบียน หรือ นำเข้าจาก Excel)</div>` : ''}
   <section class="kpis">
-    ${kpi('แผนทั้งหมด', set.length, mil(sum(set, (p) => p.budget)) + ' ลบ.', '#FFFEFB', 'var(--ink)')}
+    ${kpi('แผนทั้งหมด', set.length, mil(sum(set, (p) => p.budget)) + ' ลบ.', 'var(--card)', 'var(--ink)')}
     ${kpi('ยังไม่ส่ง', grp('ยังไม่ส่ง').length, mil(sum(grp('ยังไม่ส่ง'), (p) => p.budget)) + ' ลบ.', '#EFEBE2', '#57524A')}
     ${kpi('ส่งแล้ว', set.filter((p) => p.sent).length, 'จาก ' + set.length + ' แผน', '#E9EFF5', '#3B5A78')}
     ${kpi('ส่งกรมแล้ว', grp('ส่งกรมแล้ว').length + grp('กรมเห็นชอบ').length, mil(sum(grp('ส่งกรมแล้ว').concat(grp('กรมเห็นชอบ')), (p) => p.budget)) + ' ลบ.', '#E5F0EC', '#2F6657')}
     ${kpi('กรมเห็นชอบ', grp('กรมเห็นชอบ').length, mil(sum(grp('กรมเห็นชอบ'), (p) => p.budget)) + ' ลบ.', '#E7EEDF', '#33502F')}
+    ${PS.length ? kpi('จัดซื้อจัดจ้าง', inProc.length, (lastProc ? lastProc.name + ' ' + signed.length : '') + ' • ' + mil(sum(signed, (p) => p.budget)) + ' ลบ.', '#ECE7F0', '#5B4767') : ''}
   </section>
   <section class="card col" style="gap:12px" id="h-main">
     <div class="row wrap"><h2 class="grow" style="margin:0">สถานะแผน • ${esc(ui.unit === 'all' ? 'ทั้งเขต' : uLabel(ui.unit))}${ui.office === 'all' ? '' : ' • ' + esc(ui.office)}</h2>
       <button class="btn sm" id="h-img2">${icon('image', 14)}ส่งออกเป็นภาพ</button></div>
+    ${PS.length ? `<div class="row wrap small"><span class="muted">แสดง</span><div class="seg-ctl" id="h-mode">${Object.entries(MODES).map(([k, l]) => `<button data-v="${k}" class="${ui.mode === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="h-views" id="h-type"><span class="faint">ตาราง</span>${VIEWS_T.map((t) => `<button data-v="${t[0]}" class="chip ${ui.type === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}<span class="faint">กราฟ</span>${VIEWS_C.map((t) => `<button data-v="${t[0]}" class="chip ${ui.type === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>
     <div class="row wrap small h-filt">
       <label class="row muted">หน่วยงาน <select class="inp" id="h-unit" style="height:38px;width:auto"><option value="all">ทั้งเขต</option>${units().map((u) => `<option value="${esc(u.name)}" ${u.name === ui.unit ? 'selected' : ''}>${esc(uLabel(u.name))}</option>`).join('')}</select></label>
       <label class="row muted">สำนัก <select class="inp" id="h-office" style="height:38px;width:auto"><option value="all">ทุกสำนัก</option>${offices().map((o) => `<option ${o.short === ui.office ? 'selected' : ''}>${esc(o.short)}</option>`).join('')}</select></label>
-      ${isTable ? `<label class="row muted right">ความก้าวหน้านับจาก <select class="inp" id="h-prog" style="height:38px;width:auto">${Object.entries(PROG).map(([k, l]) => `<option value="${k}" ${k === ui.prog ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`
+      ${isTable || ui.type === 'prog' ? `<label class="row muted right">ความก้าวหน้านับจาก <select class="inp" id="h-prog" style="height:38px;width:auto">${progOptions(ui.mode).map((c) => `<option value="${c.k}" ${c.k === ui.prog ? 'selected' : ''}>${esc(c.l)}</option>`).join('')}</select></label>`
         : `<div class="seg-ctl right" id="h-measure">${[['count', 'จำนวนแผน'], ['budget', 'งบประมาณ']].map((t) => `<button data-v="${t[0]}" class="${ui.measure === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</div>`}
     </div>
     <div id="h-chart"></div>
@@ -63,21 +67,22 @@ export function view(main, arg, app) {
   // ----- กราฟหลัก -----
   const byUnit = ui.unit === 'all';
   const keys = byUnit ? units().map((u) => u.name) : offices().map((o) => o.short);
+  const SR = seriesFor(ui.mode);
   const cats = keys.map((k) => {
     const l = set.filter((p) => (byUnit ? p.unit === k : p.office === k));
     if (!l.length) return null;
-    const vals = ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return money_ ? sum(x, (p) => p.budget) / 1e6 : x.length; });
-    const sent = l.filter((p) => p.sent).length;
-    return { key: k, label: byUnit ? uLabel(k) : k, values: ui.type === 'prog' ? [(sent / l.length) * 100] : vals, sub: sent + '/' + l.length + ' แผน',
-      tips: ui.type === 'prog' ? ['ส่งแล้ว ' + sent + ' จาก ' + l.length + ' แผน'] : ST.map((s) => { const x = l.filter((p) => p.status === s.status_code); return `${x.length} แผน • ${mil(sum(x, (p) => p.budget))} ลบ.`; }) };
+    const vals = SR.map((s) => { const x = l.filter((p) => codeFor(p, ui.mode) === s.code); return money_ ? sum(x, (p) => p.budget) / 1e6 : x.length; });
+    const pr = progOf(l, ui);
+    return { key: k, label: byUnit ? uLabel(k) : k, values: ui.type === 'prog' ? [(pr.v / l.length) * 100] : vals, sub: pr.v + '/' + l.length + ' แผน',
+      tips: ui.type === 'prog' ? [pr.label + ' ' + pr.v + ' จาก ' + l.length + ' แผน'] : SR.map((s) => { const x = l.filter((p) => codeFor(p, ui.mode) === s.code); return `${x.length} แผน • ${mil(sum(x, (p) => p.budget))} ลบ.`; }) };
   }).filter(Boolean);
   const type = ui.type === 'stack' ? 'hbar' : ui.type;
-  if (isTable) $('#h-chart').innerHTML = ui.type === 'office' ? officeHTML(set, ui.prog) : ui.type === 'sum' ? summaryHTML(set, ui.prog) : ui.type === 'heat' ? heatHTML(set, ui.prog) : pendingHTML(set);
+  if (isTable) $('#h-chart').innerHTML = (ui.type === 'office' ? officeHTML : ui.type === 'sum' ? summaryHTML : ui.type === 'heat' ? heatHTML : pendingHTML)(set, ui);
   else if (ui.type === 'donut') {
-    const dcats = ST.map((s) => { const x = set.filter((p) => p.status === s.status_code); return { key: s.status_code, label: s.name, color: s.color, values: [money_ ? sum(x, (p) => p.budget) / 1e6 : x.length] }; }).filter((c) => c.values[0] > 0);
+    const dcats = SR.map((s) => { const x = set.filter((p) => codeFor(p, ui.mode) === s.code); return { key: s.code, label: s.name, color: s.color, values: [money_ ? sum(x, (p) => p.budget) / 1e6 : x.length] }; }).filter((c) => c.values[0] > 0);
     $('#h-chart').innerHTML = chart({ cats: dcats, series: [{ label: '', color: '' }], type: 'donut', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), unit: money_ ? 'ลบ.' : 'แผน' });
   } else {
-    $('#h-chart').innerHTML = chart({ cats, series: ui.type === 'prog' ? [{ label: '% ส่งแล้ว', color: '#46703F' }] : ST.map((s) => ({ label: s.name, color: s.color })), type, unit: ui.type === 'prog' ? '%' : money_ ? 'ลบ.' : 'แผน', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), onCat: byUnit });
+    $('#h-chart').innerHTML = chart({ cats, series: ui.type === 'prog' ? [{ label: '% ' + progOf([], ui).label, color: '#4E7247' }] : SR.map((s) => ({ label: s.name, color: s.color })), type, unit: ui.type === 'prog' ? '%' : money_ ? 'ลบ.' : 'แผน', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), onCat: byUnit });
   }
   on(main, '#h-chart [data-cat]', 'click', (e, el) => drill(el.dataset.cat, yearPlans));
 
@@ -104,9 +109,10 @@ export function view(main, arg, app) {
   $('#h-office').onchange = (e) => { ui.office = e.target.value; view(main, arg, app); };
   on(main, '#h-type button', 'click', (e, b) => { ui.type = b.dataset.v; view(main, arg, app); });
   on(main, '#h-measure button', 'click', (e, b) => { ui.measure = b.dataset.v; view(main, arg, app); });
+  on(main, '#h-mode button', 'click', (e, b) => { ui.mode = b.dataset.v; ui.prog = defaultProg(ui.mode); view(main, arg, app); });
   if ($('#h-prog')) $('#h-prog').onchange = (e) => { ui.prog = e.target.value; view(main, arg, app); };
   $('#h-export').onclick = () => exportYear(yearPlans);
-  const img = () => imageDialog(set, { year: ui.year, filter: [ui.unit === 'all' ? '' : uLabel(ui.unit), ui.office === 'all' ? '' : ui.office].filter(Boolean).join(' • '), kind: { sum: 'summary', heat: 'heat', stack: 'bars', col: 'bars', donut: 'donut', prog: 'brief' }[ui.type] || 'office', prog: ui.prog, measure: ui.measure });
+  const img = () => imageDialog(set, { year: ui.year, filter: [ui.unit === 'all' ? '' : uLabel(ui.unit), ui.office === 'all' ? '' : ui.office].filter(Boolean).join(' • '), kind: { sum: 'summary', heat: 'heat', stack: 'bars', col: 'bars', donut: 'donut', prog: 'brief' }[ui.type] || 'office', mode: ui.mode, prog: ui.prog, measure: ui.measure });
   $('#h-img').onclick = img; $('#h-img2').onclick = img;
 }
 
@@ -151,7 +157,7 @@ function builder(box, all, app) {
       case 'count': return l.length; case 'budget': return l.reduce((a, p) => a + p.budget, 0) / 1e6; 
       case 'avg': return l.reduce((a, p) => a + p.budget, 0) / 1e6 / l.length;
       case 'segs': return l.reduce((a, p) => a + p.segs.length, 0); case 'length': return l.reduce((a, p) => a + p.length_km, 0); case 'rounds': return l.reduce((a, p) => a + p.rounds, 0);
-      case 'pctSent': return (l.filter((p) => p.sent).length / l.length) * 100; case 'pctOk': return (l.filter((p) => p.st.dash_group === 'กรมเห็นชอบ').length / l.length) * 100;
+      case 'pctSent': return (l.filter((p) => p.sent).length / l.length) * 100; case 'pctOk': return (l.filter((p) => p.pg === 'กรมเห็นชอบ').length / l.length) * 100;
     }
     return 0;
   };
