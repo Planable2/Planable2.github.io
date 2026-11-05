@@ -8,7 +8,7 @@ import { avatar, icon, empty } from '../ui.js';
 export function more(main, arg, app) {
   const u = S.user, mo = myOpenOrders().length, pu = isAdmin() ? pendingUsers().length : 0;
   main.innerHTML = `
-  <a class="card row" href="#/profile" style="background:var(--green);color:#FFFEFB">${avatar(u, 58)}<span class="col grow" style="gap:2px"><b style="font-family:var(--head);font-size:18px;font-weight:500">${esc(u.full_name)}</b><span class="small" style="color:#C7CDB8">${esc(u.position)} • ${esc(u.role)}${u.is_admin === true ? ' • แอดมิน' : ''}</span></span><span class="small" style="color:var(--gold)">โปรไฟล์ ›</span></a>
+  <a class="card row" href="#/profile" style="background:var(--panel);color:#FFFFFF">${avatar(u, 58)}<span class="col grow" style="gap:2px"><b style="font-family:var(--head);font-size:18px;font-weight:500">${esc(u.full_name)}</b><span class="small" style="color:rgba(255,255,255,.72)">${esc(u.position)} • ${esc(u.role)}${u.is_admin === true ? ' • แอดมิน' : ''}</span></span><span class="small" style="color:var(--gold)">โปรไฟล์ ›</span></a>
   <section class="card flush morelist">
     <a href="#/plans"><span class="ic">${icon('list')}</span><span class="grow"><b>ทะเบียนแผน</b><br><span class="faint">แผนที่ได้รับงบ • สถานะแขวง/เขต • นำเข้าไฟล์ พ.ร.บ.</span></span>${icon('chev', 16)}</a>
     <a href="#/check"><span class="ic">${icon('calc')}</span><span class="grow"><b>ตรวจแผน</b><br><span class="faint">คำนวณ Factor F • ค่าดำเนินการและค่าเสื่อมราคา • ค่าขนส่ง</span></span>${icon('chev', 16)}</a>
@@ -38,7 +38,7 @@ export function fuel(main, head = '') {
   const pref = setting('fuel_types', '').split(',').map((x) => x.trim()).filter((x) => fuels.includes(x));
   if (!ui.types || !ui.types.some((t) => fuels.includes(t))) ui.types = pref.length ? pref : fuels.slice(0, 2);
   const shown = fuels.filter((f) => ui.types.includes(f));
-  const COLORS = ['#4A6B42', '#C66B3D', '#6585A6', '#9A7A9C', '#D3A04A', '#5A9585', '#C96B5B', '#8C8475', '#3E5A38'];
+  const COLORS = ['#0071E3', '#FF3B30', '#007AFF', '#AF52DE', '#FF9F0A', '#30B0C7', '#FF3B30', '#8E8E93', '#5856D6'];
   const from = ui.from <= ui.to ? ui.from : ui.to, to = ui.from <= ui.to ? ui.to : ui.from;
 
   // PTT OR บันทึกเฉพาะวันที่ราคาเปลี่ยน → ต่อเส้นระหว่างจุด และลากราคาก่อนช่วงมาเป็นจุดเริ่ม

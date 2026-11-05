@@ -25,8 +25,8 @@ export const isProcStatus = (s) => !!s && !!s.dash_group && !PLAN_GROUPS.include
 export const planStatuses = () => statuses().filter((s) => !isProcStatus(s));
 export const procStatuses = () => statuses().filter(isProcStatus);
 /** สถานะ "กรมเห็นชอบ" = ขั้นแรกของจัดซื้อจัดจ้าง (แผนที่อยู่ในขั้นจัดซื้อแล้ว นับว่าเห็นชอบแผนแล้ว) */
-export const approvedStatus = () => statuses().find((s) => s.dash_group === 'กรมเห็นชอบ') || { status_code: 's5', name: 'กรมเห็นชอบ', color: '#46703F', dash_group: 'กรมเห็นชอบ' };
-export const statusOf = (code) => statuses().find((s) => s.status_code === code) || { status_code: code, name: code, color: '#C9C1AE', dash_group: 'ยังไม่ส่ง' };
+export const approvedStatus = () => statuses().find((s) => s.dash_group === 'กรมเห็นชอบ') || { status_code: 's5', name: 'กรมเห็นชอบ', color: '#30A14E', dash_group: 'กรมเห็นชอบ' };
+export const statusOf = (code) => statuses().find((s) => s.status_code === code) || { status_code: code, name: code, color: '#C7C7CC', dash_group: 'ยังไม่ส่ง' };
 export const unitOf = (name) => cfg('Units').find((u) => u.name === name) || {};
 /** ลงทะเบียน/แก้ไขแผนของหน่วยงานนี้ได้ไหม: บทบาทมีสิทธิ์ edit_plan (ทุกหน่วยงาน) หรือเป็นผู้ตรวจของหน่วยงานนั้น — ตรงกับ planGate ในหลังบ้าน */
 export const canEditUnit = (name) => can('edit_plan') || (!!S.user && !!name && unitOf(name).reviewer_id === S.user.user_id);
@@ -79,15 +79,15 @@ export function plans() {
 export const KHWAENG_STAGES = ['กำลังดำเนินการ', 'ส่งแล้ว'];
 function stages(st, n, pg, proc) {
   const fix = truthy(st.need_reason), unsent = pg === 'ยังไม่ส่ง';
-  const khwaeng = unsent || fix ? { label: fix ? 'กำลังแก้ไข' : 'กำลังดำเนินการ', key: 'กำลังดำเนินการ', color: fix ? '#D3A04A' : '#C9C1AE' } : { label: 'ส่งแล้ว', key: 'ส่งแล้ว', color: '#6585A6' };
+  const khwaeng = unsent || fix ? { label: fix ? 'กำลังแก้ไข' : 'กำลังดำเนินการ', key: 'กำลังดำเนินการ', color: fix ? '#FF9F0A' : '#C7C7CC' } : { label: 'ส่งแล้ว', key: 'ส่งแล้ว', color: '#007AFF' };
   let khet;
-  if (unsent) khet = { label: 'รอแขวงส่ง', key: 'รอแขวงส่ง', color: '#C9C1AE' };
+  if (unsent) khet = { label: 'รอแขวงส่ง', key: 'รอแขวงส่ง', color: '#C7C7CC' };
   else if (fix) khet = { label: n > 1 ? `แก้ไขรอบที่ ${n}` : 'ส่งแก้ไข', key: 'ส่งแก้ไข', color: st.color };
   else if (pg === 'แขวงส่งแล้ว') khet = { label: n ? `ตรวจรอบที่ ${n + 1}` : 'ระหว่างตรวจ', key: 'ระหว่างตรวจ', color: st.color };
   else if (proc) { const a = approvedStatus(); khet = { label: a.name, key: a.name, color: a.color }; }
   else khet = { label: st.name, key: st.name, color: st.color };
   // สถานะจัดซื้อจัดจ้าง: เริ่มนับเมื่อกรมเห็นชอบแผน
-  const procStage = proc ? { label: st.name, key: st.status_code, color: st.color } : pg === 'กรมเห็นชอบ' ? { label: 'รอเริ่มจัดซื้อ', key: 'wait', color: '#B9C3AE' } : { label: '—', key: 'none', color: '' };
+  const procStage = proc ? { label: st.name, key: st.status_code, color: st.color } : pg === 'กรมเห็นชอบ' ? { label: 'รอเริ่มจัดซื้อ', key: 'wait', color: '#A8C7FA' } : { label: '—', key: 'none', color: '' };
   return { khwaeng, khet, procStage };
 }
 

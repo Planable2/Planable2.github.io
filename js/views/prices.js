@@ -22,7 +22,7 @@ const provinces = () => uniq(cfg('Units').filter((u) => (truthy(u.active) || u.a
 const monthsBack = (a, b) => (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + Number(b.slice(5, 7)) - Number(a.slice(5, 7));
 const num = (v) => v !== '' && v !== null && v !== undefined && !isNaN(Number(v));
 const lowest = (vals) => { const n = vals.filter(num).map(Number); return n.length > 1 ? Math.min(...n) : null; };
-const cell = (v, low) => `<td class="r num" style="${low !== null && num(v) && Number(v) === low ? 'color:#2F5C9E;font-weight:700' : ''}">${fmt(v)}</td>`;
+const cell = (v, low) => `<td class="r num" style="${low !== null && num(v) && Number(v) === low ? 'color:#0058B0;font-weight:700' : ''}">${fmt(v)}</td>`;
 const fileLink = (d) => (d.file_url ? ` <a href="${esc(d.file_url)}" target="_blank" rel="noopener" title="เปิดเอกสาร">${icon('file', 14)}</a>` : '');
 const shortConcrete = (n) => n.replace(/^คอนกรีตผสมเสร็จ\s*/, '').replace(/รูปลูกบาศก์\s*/, 'ลูกบาศก์ ').replace(/\s*และรูปทรงกระบอก\s*/, ' / ทรงกระบอก ').replace(/กก\.\/ตร\.ซม\./g, 'ksc');
 
@@ -50,7 +50,7 @@ function asphalt(main, app, head) {
   const names = uniq(items('asphalt').map((i) => i.name).concat(cols.flatMap((c) => Object.keys(c.p)))).filter((n) => cols.some((c) => c.p[n]));
   const edit = can('edit_price');
   main.innerHTML = `${head}
-  <div class="page-head"><div class="t"><h1>ราคายางแอสฟัลต์ • ${thMonth(cur)}</h1><span class="muted small">Bulk = บาท/ตัน • ไม่รวม VAT • พาณิชย์ (กรุงเทพฯ) ดึงอัตโนมัติ • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
+  <div class="page-head"><div class="t"><h1>ราคายางแอสฟัลต์ • ${thMonth(cur)}</h1><span class="muted small">Bulk = บาท/ตัน • ไม่รวม VAT • พาณิชย์ (กรุงเทพฯ) ดึงอัตโนมัติ • <b style="color:#0058B0">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
     <label class="f" style="flex:0 0 170px">เดือน<input class="inp" type="month" id="pa-m" value="${esc(cur)}"></label>
     ${edit ? `<button class="btn pri" id="pa-add">${icon('plus', 16)}กรอกราคาจากใบสืบ</button>` : ''}</div>
   ${names.length ? `<section class="card flush scroll-x"><table class="tbl"><thead>
@@ -92,7 +92,7 @@ function quarry(main, app, head) {
   };
   const issued = all.slice().sort(by('period')).reverse();
   main.innerHTML = `${head}
-  <div class="page-head"><div class="t"><h1>ราคาวัสดุจากแหล่ง</h1><span class="muted small">ใช้ราคาที่ออกล่าสุด ณ วันที่เลือก • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว • หินผสมแอสฟัลต์ = หินฝุ่น×0.40 + หิน 3/8"×0.30 + หิน 1/2"×0.20 + หิน 3/4"×0.10 (คำนวณอัตโนมัติ)</span></div>
+  <div class="page-head"><div class="t"><h1>ราคาวัสดุจากแหล่ง</h1><span class="muted small">ใช้ราคาที่ออกล่าสุด ณ วันที่เลือก • <b style="color:#0058B0">สีน้ำเงิน</b> = ถูกสุดในแถว • หินผสมแอสฟัลต์ = หินฝุ่น×0.40 + หิน 3/8"×0.30 + หิน 1/2"×0.20 + หิน 3/4"×0.10 (คำนวณอัตโนมัติ)</span></div>
     <label class="f" style="flex:0 0 170px">ราคา ณ วันที่<input class="inp" type="date" id="pq-d" value="${esc(at)}"></label>
     ${edit ? `<button class="btn pri" id="pq-add">${icon('plus', 16)}ออกราคาใหม่</button>` : ''}</div>
   ${blocks.length ? blocks.map(table).join('') : empty(all.length ? 'ยังไม่มีราคาที่ออกก่อนวันที่นี้' : 'ยังไม่มีราคา — กด "ออกราคาใหม่" เพื่อกรอกจากบันทึก สทล.2')}
@@ -110,7 +110,7 @@ function concrete(main, app, head) {
   const cur = ui.cmonth || months[months.length - 1] || iso(today()).slice(0, 7), provs = provinces();
   const body = areaSection('concrete', 'คอนกรีตผสมเสร็จ', shortConcrete, cur, provs) + areaSection('cement', 'ปูนซีเมนต์', (n) => n, cur, provs);
   main.innerHTML = `${head}
-  <div class="page-head"><div class="t"><h1>คอนกรีต / ปูนซีเมนต์ • ${thMonth(cur)}</h1><span class="muted small">พาณิชย์จังหวัด ดึงอัตโนมัติ • ไม่รวม VAT • แต่ละจังหวัดใช้เดือนล่าสุดที่ประกาศ (ถ้าไม่ใช่เดือนนี้ แสดงใต้ชื่อจังหวัด) • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
+  <div class="page-head"><div class="t"><h1>คอนกรีต / ปูนซีเมนต์ • ${thMonth(cur)}</h1><span class="muted small">พาณิชย์จังหวัด ดึงอัตโนมัติ • ไม่รวม VAT • แต่ละจังหวัดใช้เดือนล่าสุดที่ประกาศ (ถ้าไม่ใช่เดือนนี้ แสดงใต้ชื่อจังหวัด) • <b style="color:#0058B0">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
     <label class="f" style="flex:0 0 170px">เดือน<input class="inp" type="month" id="pc-m" value="${esc(cur)}"></label></div>
   ${body || empty('ยังไม่มีราคาเดือนนี้ — ระบบดึงจากพาณิชย์จังหวัดให้อัตโนมัติทุกเช้า')}`;
   $('#pc-m').onchange = (e) => { if (e.target.value) { ui.cmonth = e.target.value; view(main, '', app); } };
@@ -216,7 +216,7 @@ function steel(main, app, head) {
   const cur = ui.smonth || months[months.length - 1] || iso(today()).slice(0, 7);
   const body = areaSection('steel', 'เหล็กเส้น (บาท/ตัน)', shortSteel, cur, ['กรุงเทพฯ'].concat(provinces()));
   main.innerHTML = `${head}
-  <div class="page-head"><div class="t"><h1>ราคาเหล็กเส้น • ${thMonth(cur)}</h1><span class="muted small">พาณิชย์จังหวัด + กรุงเทพฯ (ราคาส่วนกลาง) ดึงอัตโนมัติ • ไม่รวม VAT • แต่ละพื้นที่ใช้เดือนล่าสุดที่ประกาศ • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
+  <div class="page-head"><div class="t"><h1>ราคาเหล็กเส้น • ${thMonth(cur)}</h1><span class="muted small">พาณิชย์จังหวัด + กรุงเทพฯ (ราคาส่วนกลาง) ดึงอัตโนมัติ • ไม่รวม VAT • แต่ละพื้นที่ใช้เดือนล่าสุดที่ประกาศ • <b style="color:#0058B0">สีน้ำเงิน</b> = ถูกสุดในแถว</span></div>
     <label class="f" style="flex:0 0 170px">เดือน<input class="inp" type="month" id="ps-m" value="${esc(cur)}"></label></div>
   ${body || empty('ยังไม่มีราคาเหล็กเส้น — ระบบดึงจากพาณิชย์ให้อัตโนมัติทุกเช้า (ครั้งแรกสั่งย้อนหลังได้ที่ GitHub › Actions › material-price › Run workflow)')}`;
   $('#ps-m').onchange = (e) => { if (e.target.value) { ui.smonth = e.target.value; view(main, '', app); } };
@@ -263,7 +263,7 @@ function pipe(main, app, head) {
       <tbody>${fs.map((f) => `<tr><td style="padding-left:18px;min-width:220px"><b>${esc(f.name)}</b>${f.loc ? `<br><span class="faint small">${esc(f.loc)}</span>` : ''}</td>${['c2', 'c3'].map((k) => PIPE_DIA.map((x, i) => cell(f[k][x], low(k, x)).replace('<td class="r num"', `<td class="r num${k === 'c3' && !i ? ' pc3' : ''}"`)).join('')).join('')}</tr>`).join('')}</tbody></table></section>`;
   };
   main.innerHTML = `${head}
-  <div class="page-head"><div class="t"><h1>ราคาท่อ คสล. • ${thMonth(cur)}</h1><span class="muted small">ราคา ณ โรงงานในพื้นที่แต่ละแขวง • บาท/ม. • ไม่รวม VAT ไม่รวมค่าขนส่ง • แต่ละแขวงใช้เดือนล่าสุดที่กรอก • <b style="color:#2F5C9E">สีน้ำเงิน</b> = ถูกสุดในแขวง</span></div>
+  <div class="page-head"><div class="t"><h1>ราคาท่อ คสล. • ${thMonth(cur)}</h1><span class="muted small">ราคา ณ โรงงานในพื้นที่แต่ละแขวง • บาท/ม. • ไม่รวม VAT ไม่รวมค่าขนส่ง • แต่ละแขวงใช้เดือนล่าสุดที่กรอก • <b style="color:#0058B0">สีน้ำเงิน</b> = ถูกสุดในแขวง</span></div>
     <label class="f" style="flex:0 0 170px">เดือน<input class="inp" type="month" id="pp-m" value="${esc(cur)}"></label>
     ${edit ? `<button class="btn pri" id="pp-add">${icon('plus', 16)}กรอกราคาท่อ</button>` : ''}</div>
   ${blocks.length ? blocks.map(card).join('') : empty('ยังไม่มีราคาท่อ — กด "กรอกราคาท่อ" แล้วกรอกเอง หรือนำเข้าจากไฟล์ Excel')}`;

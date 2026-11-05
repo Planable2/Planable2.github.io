@@ -31,7 +31,7 @@ export function view(main, arg, app) {
     <div class="t"><span class="muted small">${isGuest() ? 'ยินดีต้อนรับ • โหมดผู้เยี่ยมชม' : 'สวัสดี, ' + esc(S.user.full_name) + ' • ' + TH_DOW[new Date().getDay()] + ' ' + thDate(new Date())}</span>
       <h1>ภาพรวมแผนทั้งเขต • ปีงบ ${ui.year}</h1></div>
     <label class="row small muted" style="background:var(--card);border:1px solid var(--line);border-radius:22px;padding:0 6px 0 14px;height:44px">ปีงบประมาณ
-      <select id="h-year" class="inp" style="height:34px;width:auto;border:0;background:var(--green-soft);color:var(--green-ink);font-weight:600">${years.length ? years.map((y) => `<option value="${y}" ${y === ui.year ? 'selected' : ''}>${y}${y === fy ? ' (ปัจจุบัน)' : ''}</option>`).join('') : `<option>${fy}</option>`}</select></label>
+      <select id="h-year" class="inp" style="height:34px;width:auto;border:0;background:var(--accent-soft);color:var(--accent-ink);font-weight:600">${years.length ? years.map((y) => `<option value="${y}" ${y === ui.year ? 'selected' : ''}>${y}${y === fy ? ' (ปัจจุบัน)' : ''}</option>`).join('') : `<option>${fy}</option>`}</select></label>
     <button class="btn" id="h-img" title="ส่งออกสถานะเป็นภาพ" aria-label="ส่งออกสถานะเป็นภาพ">${icon('image', 16)}ส่งออกเป็นภาพ</button>
     <button class="btn" id="h-export" title="ส่งออก Excel" aria-label="ส่งออก Excel">${icon('download', 16)}ส่งออก Excel</button>
   </div>
@@ -39,11 +39,11 @@ export function view(main, arg, app) {
   ${!years.length ? `<div class="empty">ยังไม่มีแผนในทะเบียน — เริ่มจากหน้าทะเบียนแผน (ลงทะเบียน หรือ นำเข้าจาก Excel)</div>` : ''}
   <section class="kpis">
     ${kpi('แผนทั้งหมด', set.length, mil(sum(set, (p) => p.budget)) + ' ลบ.', 'var(--card)', 'var(--ink)')}
-    ${kpi('ยังไม่ส่ง', grp('ยังไม่ส่ง').length, mil(sum(grp('ยังไม่ส่ง'), (p) => p.budget)) + ' ลบ.', '#EFEBE2', '#57524A')}
-    ${kpi('ส่งแล้ว', set.filter((p) => p.sent).length, 'จาก ' + set.length + ' แผน', '#E9EFF5', '#3B5A78')}
-    ${kpi('ส่งกรมแล้ว', grp('ส่งกรมแล้ว').length + grp('กรมเห็นชอบ').length, mil(sum(grp('ส่งกรมแล้ว').concat(grp('กรมเห็นชอบ')), (p) => p.budget)) + ' ลบ.', '#E5F0EC', '#2F6657')}
-    ${kpi('กรมเห็นชอบ', grp('กรมเห็นชอบ').length, mil(sum(grp('กรมเห็นชอบ'), (p) => p.budget)) + ' ลบ.', '#E7EEDF', '#33502F')}
-    ${PS.length ? kpi('จัดซื้อจัดจ้าง', inProc.length, (lastProc ? lastProc.name + ' ' + signed.length : '') + ' • ' + mil(sum(signed, (p) => p.budget)) + ' ลบ.', '#ECE7F0', '#5B4767') : ''}
+    ${kpi('ยังไม่ส่ง', grp('ยังไม่ส่ง').length, mil(sum(grp('ยังไม่ส่ง'), (p) => p.budget)) + ' ลบ.', 'var(--card)', '#6E6E73')}
+    ${kpi('ส่งแล้ว', set.filter((p) => p.sent).length, 'จาก ' + set.length + ' แผน', 'var(--card)', '#0058B0')}
+    ${kpi('ส่งกรมแล้ว', grp('ส่งกรมแล้ว').length + grp('กรมเห็นชอบ').length, mil(sum(grp('ส่งกรมแล้ว').concat(grp('กรมเห็นชอบ')), (p) => p.budget)) + ' ลบ.', 'var(--card)', '#0E7490')}
+    ${kpi('กรมเห็นชอบ', grp('กรมเห็นชอบ').length, mil(sum(grp('กรมเห็นชอบ'), (p) => p.budget)) + ' ลบ.', 'var(--card)', '#1F7A3A')}
+    ${PS.length ? kpi('จัดซื้อจัดจ้าง', inProc.length, (lastProc ? lastProc.name + ' ' + signed.length : '') + ' • ' + mil(sum(signed, (p) => p.budget)) + ' ลบ.', 'var(--card)', '#6E3FA3') : ''}
   </section>
   <section class="card col" style="gap:12px" id="h-main">
     <div class="row wrap"><h2 class="grow" style="margin:0">สถานะแผน • ${esc(ui.unit === 'all' ? 'ทั้งเขต' : uLabel(ui.unit))}${ui.office === 'all' ? '' : ' • ' + esc(ui.office)}</h2>
@@ -82,7 +82,7 @@ export function view(main, arg, app) {
     const dcats = SR.map((s) => { const x = set.filter((p) => codeFor(p, ui.mode) === s.code); return { key: s.code, label: s.name, color: s.color, values: [money_ ? sum(x, (p) => p.budget) / 1e6 : x.length] }; }).filter((c) => c.values[0] > 0);
     $('#h-chart').innerHTML = chart({ cats: dcats, series: [{ label: '', color: '' }], type: 'donut', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), unit: money_ ? 'ลบ.' : 'แผน' });
   } else {
-    $('#h-chart').innerHTML = chart({ cats, series: ui.type === 'prog' ? [{ label: '% ' + progOf([], ui).label, color: '#4E7247' }] : SR.map((s) => ({ label: s.name, color: s.color })), type, unit: ui.type === 'prog' ? '%' : money_ ? 'ลบ.' : 'แผน', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), onCat: byUnit });
+    $('#h-chart').innerHTML = chart({ cats, series: ui.type === 'prog' ? [{ label: '% ' + progOf([], ui).label, color: '#0071E3' }] : SR.map((s) => ({ label: s.name, color: s.color })), type, unit: ui.type === 'prog' ? '%' : money_ ? 'ลบ.' : 'แผน', fmt: (v) => (money_ ? v.toFixed(1) : String(Math.round(v))), onCat: byUnit });
   }
   on(main, '#h-chart [data-cat]', 'click', (e, el) => drill(el.dataset.cat, yearPlans));
 
@@ -97,7 +97,7 @@ export function view(main, arg, app) {
       ${late.length && ui.year === currentFY() ? `<a class="note red" href="#/plans">${icon('warn')}<span class="grow"><b>เลยกำหนดรอบส่ง ${late.length} แผน</b><br>${Object.keys(lateBy).map((k) => esc(uLabel(k)) + ' (' + lateBy[k] + ')').join(', ')}</span>${icon('chev', 16)}</a>` : ''}
       <a class="card row" href="#/orders" style="color:var(--ink)"><span class="kpi" style="padding:0;background:none"><span class="v" style="color:var(--gold-ink)">${mine.length}</span></span><span class="grow"><b>งานสั่งการของคุณ</b><br><span class="muted small">ค้าง ${mine.length} งาน${lateO ? ' • เลยกำหนด ' + lateO : ''}${nearO ? ' • ใกล้กำหนด ' + nearO : ''}</span></span>${icon('chev', 16)}</a>
       <section class="card col" style="gap:8px"><div class="row"><h3 class="grow">ประชุมที่กำลังจะมาถึง</h3><a href="#/meetings" class="small">ดูปฏิทิน</a></div>
-        ${ups.length ? ups.map((m) => { const d = toDate(m.date), mineM = attendeesOf(m.meeting_id).includes(S.user.user_id); return `<a href="#/meetings/${esc(m.meeting_id)}" class="row" style="color:var(--ink);padding:8px 0;border-top:1px solid var(--line2);align-items:flex-start"><span style="width:50px;border-radius:16px;background:${daysBetween(t0, d) === 0 ? 'var(--green)' : 'var(--soft2)'};color:${daysBetween(t0, d) === 0 ? '#fff' : 'var(--ink)'};display:flex;flex-direction:column;align-items:center;padding:5px 0;flex-shrink:0"><span style="font-size:11px">${TH_DOW[d.getDay()].slice(0, 2)}.</span><b style="font-family:var(--head);font-size:19px;font-weight:500">${d.getDate()}</b></span><span class="col grow" style="gap:3px"><b class="small">${esc(m.title)}</b><span class="faint">${esc(m.start || '')} น. • ${esc(m.place || '')}</span>${avatarStack(attendeesOf(m.meeting_id), 24, 6)}${mineM ? '<span class="tag gold" style="align-self:flex-start">คุณต้องเข้า</span>' : ''}</span></a>`; }).join('') : '<span class="faint">ไม่มีประชุมที่กำลังจะมาถึง</span>'}
+        ${ups.length ? ups.map((m) => { const d = toDate(m.date), mineM = attendeesOf(m.meeting_id).includes(S.user.user_id); return `<a href="#/meetings/${esc(m.meeting_id)}" class="row" style="color:var(--ink);padding:8px 0;border-top:1px solid var(--line2);align-items:flex-start"><span style="width:50px;border-radius:16px;background:${daysBetween(t0, d) === 0 ? 'var(--accent)' : 'var(--soft2)'};color:${daysBetween(t0, d) === 0 ? '#fff' : 'var(--ink)'};display:flex;flex-direction:column;align-items:center;padding:5px 0;flex-shrink:0"><span style="font-size:11px">${TH_DOW[d.getDay()].slice(0, 2)}.</span><b style="font-family:var(--head);font-size:19px;font-weight:500">${d.getDate()}</b></span><span class="col grow" style="gap:3px"><b class="small">${esc(m.title)}</b><span class="faint">${esc(m.start || '')} น. • ${esc(m.place || '')}</span>${avatarStack(attendeesOf(m.meeting_id), 24, 6)}${mineM ? '<span class="tag gold" style="align-self:flex-start">คุณต้องเข้า</span>' : ''}</span></a>`; }).join('') : '<span class="faint">ไม่มีประชุมที่กำลังจะมาถึง</span>'}
       </section>
       ${fuelCard()}`;
   }
@@ -163,8 +163,8 @@ function builder(box, all, app) {
   };
   const fmt = (v) => (['แผน', 'ช่วง', 'รอบ'].includes(M[2]) ? Math.round(v).toLocaleString() : M[2] === '%' ? v.toFixed(0) + '%' : v.toFixed(1));
   const split = cb.split === cb.group ? 'none' : cb.split;
-  const PAL = ['#4A6B42', '#6585A6', '#D3A04A', '#9A7A9C', '#5A9585', '#C66B3D', '#A39C88'], YP = ['#C9C1AE', '#9DB08F', '#4A6B42', '#2F4A2B', '#D3A04A', '#6585A6'];
-  const sers = keys(split).map((s, i) => ({ k: s.k, label: s.label, color: split === 'none' ? '#5E7356' : split === 'status' ? s.color : split === 'year' ? YP[i % 6] : PAL[i % 7] }));
+  const PAL = ['#0071E3', '#007AFF', '#FF9F0A', '#AF52DE', '#30B0C7', '#FF3B30', '#8E8E93'], YP = ['#C7C7CC', '#A8C7FA', '#0071E3', '#00428A', '#FF9F0A', '#007AFF'];
+  const sers = keys(split).map((s, i) => ({ k: s.k, label: s.label, color: split === 'none' ? '#0071E3' : split === 'status' ? s.color : split === 'year' ? YP[i % 6] : PAL[i % 7] }));
   const cats = keys(cb.group).map((c, ci) => {
     const inC = pool.filter((p) => val(p, cb.group) === c.k);
     if (!inC.length) return null;

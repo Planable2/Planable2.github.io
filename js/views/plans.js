@@ -15,7 +15,7 @@ export function view(main, arg, app) {
   <div class="page-head">
     <div class="t"><h1>ทะเบียนแผนงาน</h1><span class="muted small">แผนที่ได้รับงบประมาณแล้ว แยกตามปีงบ › หน่วยงาน › สำนัก</span></div>
     <label class="row small muted" style="background:var(--card);border:1px solid var(--line);border-radius:22px;padding:0 6px 0 14px;height:44px">ปีงบ
-      <select id="p-year" class="inp" style="height:34px;width:auto;border:0;background:var(--green-soft);color:var(--green-ink);font-weight:600">${(years.length ? years : [fy]).map((y) => `<option value="${y}" ${y === ui.year ? 'selected' : ''}>${y}${y === fy ? ' (ปัจจุบัน)' : ''}</option>`).join('')}</select></label>
+      <select id="p-year" class="inp" style="height:34px;width:auto;border:0;background:var(--accent-soft);color:var(--accent-ink);font-weight:600">${(years.length ? years : [fy]).map((y) => `<option value="${y}" ${y === ui.year ? 'selected' : ''}>${y}${y === fy ? ' (ปัจจุบัน)' : ''}</option>`).join('')}</select></label>
     ${canAddPlan() ? `<button class="btn soft" id="p-import">${icon('up', 16)}นำเข้าจาก Excel</button>` : ''}
     <button class="btn" id="p-export">${icon('download', 16)}ส่งออก</button>
     ${canAddPlan() ? `<button class="btn pri" id="p-new">${icon('plus', 16)}ลงทะเบียนแผน</button>` : ''}
@@ -86,28 +86,28 @@ const segCol = (fn) => (p) => (p.segs.length ? p.segs.map((s) => `<div class="se
 const segText = (p) => (p.segs.length ? p.segs.map((s) => `<div><b>${esc(s.road)}</b> ${kmRange(s)} <span class="faint">${esc(s.side)}</span></div>`).join('') : '<span class="faint">ไม่ระบุสายทาง</span>');
 const stagePill = (s) => `<span class="pill" style="--c:${esc(s.color)}">${esc(s.label)}</span>`;
 const COLDEF = [
-  { k: 'idcode', l: 'ID CODE', w: 84, cls: 'num', td: (p) => esc(p.id_code || '') },
-  { k: 'code', l: 'รหัสงาน', w: 70, cls: 'num', td: (p) => esc(p.work_code || '') },
-  { k: 'activity', l: 'กิจกรรมตาม พ.ร.บ.', h: 'กิจกรรม พ.ร.บ.', w: 130, cls: 'small', td: (p) => esc(p.activity || '') },
+  { k: 'idcode', l: 'ID CODE', w: 72, cls: 'num', td: (p) => esc(p.id_code || '') },
+  { k: 'code', l: 'รหัสงาน', w: 58, cls: 'num', td: (p) => esc(p.work_code || '') },
+  { k: 'activity', l: 'กิจกรรมตาม พ.ร.บ.', h: 'กิจกรรม พ.ร.บ.', w: 102, cls: 'small', td: (p) => esc(p.activity || '') },
   { k: 'office', l: 'สำนัก', w: 76, td: (p) => esc(p.office), off: true },
   { k: 'province', l: 'จังหวัด', w: 80, td: (p) => esc(p.province || ''), off: true },
   { k: 'sthl', l: 'สทล.', w: 52, cls: 'num', td: (p) => esc(p.sthl || ''), off: true },
-  { k: 'road', l: 'ทางหลวง', w: 80, cls: 'num', td: segCol((s) => `<b>${esc(s.road)}</b>`) },
-  { k: 'control', l: 'ตอนควบคุม', h: 'ตอน', w: 62, cls: 'num', td: segCol((s) => esc(s.control || '')) },
-  { k: 'section', l: 'ชื่อตอน', w: 140, cls: 'small', td: segCol((s) => `<span title="${esc(s.section || '')}">${esc(s.section || '')}</span>`) },
-  { k: 'km', l: 'กม. (ดำเนินการ)', h: 'กม.', w: 160, cls: 'num small', td: segCol(kmRange) },
-  { k: 'side', l: 'ทางหลัก', w: 64, cls: 'small', td: segCol((s) => esc(s.side || '')) },
+  { k: 'road', l: 'ทางหลวง', w: 72, cls: 'num', td: segCol((s) => `<b>${esc(s.road)}</b>`) },
+  { k: 'control', l: 'ตอนควบคุม', h: 'ตอน', w: 42, cls: 'num', td: segCol((s) => esc(s.control || '')) },
+  { k: 'section', l: 'ชื่อตอน', w: 105, cls: 'small', td: segCol((s) => `<span title="${esc(s.section || '')}">${esc(s.section || '')}</span>`) },
+  { k: 'km', l: 'กม. (ดำเนินการ)', h: 'กม.', w: 134, cls: 'num small', td: segCol(kmRange) },
+  { k: 'side', l: 'ทางหลัก', w: 60, cls: 'small', td: segCol((s) => esc(s.side || '')) },
   { k: 'parallel', l: 'ทางขนาน', w: 62, cls: 'small', td: segCol((s) => esc(s.parallel || '')), off: true },
   { k: 'segs', l: 'สายทาง • กม. • ฝั่ง (รวม)', w: 200, cls: 'num', td: segText, off: true },
   { k: 'name', l: 'ชื่องาน (ชื่อตอน พ.ร.บ.)', w: 220, cls: 'small', td: (p) => esc(p.work_name), off: true },
   { k: 'length', l: 'ระยะทาง (กม.)', w: 80, cls: 'r num', td: (p) => (p.length_km ? p.length_km.toFixed(3) : '<span class="faint">—</span>'), off: true },
-  { k: 'budget', l: 'งบประมาณ (บาท)', h: 'งบประมาณ', w: 104, cls: 'r num', td: (p) => money(p.budget) },
+  { k: 'budget', l: 'งบประมาณ (บาท)', h: 'งบประมาณ', w: 80, cls: 'r num', td: (p) => money(p.budget) },
   { k: 'round', l: 'รอบส่ง / กำหนด', w: 110, td: (p) => { const noDue = !p.round && !(cfg('Offices').find((o) => o.short === p.office) || {}).has_round; return `<span class="small" style="color:${p.late ? 'var(--red)' : 'var(--muted)'}">${noDue ? 'ไม่มีกำหนด' : p.round ? esc(p.round.name) + ' • ' + thDate(p.round.due_date) : '—'}${p.late ? ' • เลยกำหนด' : ''}</span>`; }, off: true },
-  { k: 'khwaeng', l: 'สถานะแขวง', w: 100, td: (p) => stagePill(p.khwaeng) },
-  { k: 'khet', l: 'สถานะเขต', w: 120, td: (p) => stagePill(p.khet) },
-  { k: 'proc', l: 'สถานะจัดซื้อจัดจ้าง', h: 'จัดซื้อจัดจ้าง', w: 124, td: (p) => (p.procStage.color ? stagePill(p.procStage) : '<span class="faint">—</span>'), when: () => procStatuses().length > 0 },
-  { k: 'status', l: 'อัปเดตสถานะ', w: 178, td: statusCell },
-  { k: 'rounds', l: 'ส่งกลับแก้', w: 70, td: (p) => (p.rounds ? `<span class="tag gold" data-tip="${esc('ส่งกลับแก้ ' + p.rounds + ' รอบ|' + p.reasons.join('|'))}">${p.rounds} รอบ</span>` : '<span class="faint">—</span>') },
+  { k: 'khwaeng', l: 'สถานะแขวง', w: 122, td: (p) => stagePill(p.khwaeng) },
+  { k: 'khet', l: 'สถานะเขต', w: 116, td: (p) => stagePill(p.khet) },
+  { k: 'proc', l: 'สถานะจัดซื้อจัดจ้าง', h: 'จัดซื้อจัดจ้าง', w: 118, td: (p) => (p.procStage.color ? stagePill(p.procStage) : '<span class="faint">—</span>'), when: () => procStatuses().length > 0 },
+  { k: 'status', l: 'อัปเดตสถานะ', w: 128, td: statusCell },
+  { k: 'rounds', l: 'ส่งกลับแก้', w: 76, td: (p) => (p.rounds ? `<span class="tag gold" data-tip="${esc('ส่งกลับแก้ ' + p.rounds + ' รอบ|' + p.reasons.join('|'))}">${p.rounds} รอบ</span>` : '<span class="faint">—</span>') },
   { k: 'supervisor', l: 'ผู้ควบคุมงาน', w: 110, cls: 'small', td: (p) => esc(p.supervisor || ''), off: true },
   { k: 'contractor', l: 'ผู้รับจ้าง', w: 120, cls: 'small', td: (p) => esc(p.contractor || ''), off: true },
   { k: 'kmlog', l: 'แก้ กม.', w: 62, td: (p) => (p.kmlogs.length ? `<span class="tag" data-tip="${esc('แก้ไข กม. ' + p.kmlogs.length + ' ครั้ง|ล่าสุด: ' + p.kmlogs[p.kmlogs.length - 1].after)}">${p.kmlogs.length} ครั้ง</span>` : '<span class="faint">—</span>'), off: true },
@@ -149,7 +149,7 @@ function drawList(main) {
   const box = $('#p-groups');
   if (!list.length) { box.innerHTML = empty('ไม่พบแผนตามตัวกรองในปีงบ ' + ui.year); return; }
   // ความกว้างคอลัมน์เป็นสัดส่วน → ตารางพอดีความกว้างจอ (ไม่ต้องเลื่อนซ้ายขวาบนคอม)
-  const cols = shownCols(), act = canAddPlan() || mayStatus(), total = cols.reduce((a, c) => a + c.w, 0) + (act ? 46 : 0);
+  const cols = shownCols(), act = canAddPlan() || mayStatus(), total = cols.reduce((a, c) => a + c.w, 0) + (act ? 40 : 0);
   const pc = (w) => ((w / total) * 100).toFixed(2) + '%';
   box.innerHTML = units().map((u, ui_) => {
     const l = list.filter((p) => p.unit === u.name);
@@ -161,11 +161,11 @@ function drawList(main) {
       <div class="gh-row"><button class="gh" aria-expanded="${open}"><span class="chev">${icon('chev', 18)}</span><b style="font-family:var(--head);font-size:18px;font-weight:500;min-width:84px">${esc(u.name)}</b>
         <span class="small muted">${l.length} แผน • ${mil(l.reduce((a, p) => a + p.budget, 0))} ลบ.</span>
         <span class="track" style="flex:1 1 140px;max-width:260px;height:10px">${c.map((v, i) => `<span style="flex-grow:${v};flex-basis:0;display:${v ? 'block' : 'none'};background:${ST[i].color}" data-tip="${esc(ST[i].name + '|' + v + ' แผน')}"></span>`).join('')}</span>
-        <span class="small" style="font-weight:600;color:${sent / l.length < 0.85 ? 'var(--gold-ink)' : 'var(--green-ink)'}">${u.kind === 'เขต' ? 'ส่งกรมแล้ว' : 'ส่งแล้ว'} ${sent}/${l.length}</span>
+        <span class="small" style="font-weight:600;color:${sent / l.length < 0.85 ? 'var(--gold-ink)' : 'var(--good-ink)'}">${u.kind === 'เขต' ? 'ส่งกรมแล้ว' : 'ส่งแล้ว'} ${sent}/${l.length}</span>
         ${late ? `<span class="tag red">เลยกำหนด ${late}</span>` : ''}</button>
         <span class="gh-rev small muted">ผู้ตรวจ ${rev ? avatar(rev, 28) + '<b style="color:var(--ink);font-weight:500">' + esc(rev.full_name) + '</b>' : '—'}${mayReviewer() && u.kind !== 'เขต' ? `<button class="icon-btn sm" data-rev="${esc(u.name)}" title="เปลี่ยนผู้ตรวจ" aria-label="เปลี่ยนผู้ตรวจของ ${esc(u.name)}">${icon('edit', 15)}</button>` : ''}</span></div>
       ${open ? `<div class="gb scroll-x"><table class="tbl ptbl">
-        <colgroup>${cols.map((c) => `<col style="width:${pc(c.w)}">`).join('')}${act ? `<col style="width:${pc(46)}">` : ''}</colgroup>
+        <colgroup>${cols.map((c) => `<col style="width:${pc(c.w)}">`).join('')}${act ? `<col style="width:${pc(40)}">` : ''}</colgroup>
         <thead><tr>${cols.map((c, i) => `<th class="${c.cls && c.cls.includes('r') ? 'r' : ''}" title="${esc(c.l)}" ${i === 0 ? 'style="padding-left:16px"' : ''}>${esc(c.h || c.l)}</th>`).join('')}${act ? '<th class="stick-r"></th>' : ''}</tr></thead>
         <tbody>${l.map((p) => `<tr data-plan="${esc(p.plan_id)}">${cols.map((c, i) => `<td class="${c.cls || ''}" ${i === 0 ? 'style="padding-left:16px"' : ''}>${c.td(p)}</td>`).join('')}${act ? `<td class="r stick-r"><button class="icon-btn sm" data-edit="${esc(p.plan_id)}" title="แก้ไข (แผน • กม. • สถานะ)" aria-label="แก้ไขแผน">${icon('edit', 16)}</button></td>` : ''}</tr>`).join('')}</tbody></table></div>` : ''}
     </section>`;
@@ -549,7 +549,7 @@ function importDialog(app) {
   const draw = (dlg) => {
     if (!st.sheet) {
       dlg.innerHTML = `${modalHead('นำเข้าแผนจาก Excel', 'ใช้ไฟล์ทะเบียน พ.ร.บ. ของสำนักได้เลย (รวมทุกแขวง) — ระบบเลือกเฉพาะแขวงที่ตรงกับหน่วยงานในระบบ')}
-        <label class="col center" style="border:2px dashed #B8C7AE;background:#F7F9F3;border-radius:24px;padding:34px;cursor:pointer;align-items:center;gap:6px">${icon('up', 34)}<b>เลือกไฟล์ .xlsx</b><span class="faint">ไฟล์ list รวมทุกสำนัก (ฐาน พ.ร.บ.) หรือไฟล์ พ.ร.บ. ของสำนัก • คอลัมน์: ID CODE • รหัสงาน • กิจกรรมตาม พ.ร.บ. • แขวง • จังหวัด • สทล. • ทางหลวง • ตอนควบคุม • ชื่อตอน • กม. เริ่มต้น/สิ้นสุด • ทางหลัก • ทางขนาน • ชื่อตอน พ.ร.บ. • งบประมาณ</span><input type="file" accept=".xlsx,.xls,.csv" id="im-file" hidden></label>
+        <label class="col center" style="border:2px dashed #C7C7CC;background:#F5F5F7;border-radius:24px;padding:34px;cursor:pointer;align-items:center;gap:6px">${icon('up', 34)}<b>เลือกไฟล์ .xlsx</b><span class="faint">ไฟล์ list รวมทุกสำนัก (ฐาน พ.ร.บ.) หรือไฟล์ พ.ร.บ. ของสำนัก • คอลัมน์: ID CODE • รหัสงาน • กิจกรรมตาม พ.ร.บ. • แขวง • จังหวัด • สทล. • ทางหลวง • ตอนควบคุม • ชื่อตอน • กม. เริ่มต้น/สิ้นสุด • ทางหลัก • ทางขนาน • ชื่อตอน พ.ร.บ. • งบประมาณ</span><input type="file" accept=".xlsx,.xls,.csv" id="im-file" hidden></label>
         <span class="err" id="im-err"></span>
         <div class="row wrap note grey"><span class="grow">ไม่มีไฟล์? ดาวน์โหลดแม่แบบรูปแบบเดียวกับไฟล์ พ.ร.บ. • แผนที่มีหลายช่วงสายทาง ให้ขึ้นบรรทัดใหม่ในเซลล์ (Alt+Enter)</span><button class="btn sm" id="im-tpl">${icon('download', 14)}ดาวน์โหลดแม่แบบ</button></div>
         <div class="dlg-foot"><button class="btn" data-dismiss>ยกเลิก</button></div>`;
@@ -597,10 +597,10 @@ function importDialog(app) {
         ${other.length ? `<details ${mapped.length ? '' : 'open'}><summary class="small" style="cursor:pointer">แขวงอื่นในไฟล์ ${other.length} แขวง (ไม่นำเข้า) — กดเพื่อจับคู่เพิ่ม</summary>
           <div class="scroll-x" style="max-height:30vh;border:1px solid var(--line2);border-radius:16px;margin-top:6px"><table class="tbl"><tbody>${other.map(mapRow).join('')}</tbody></table></div></details>` : ''}
       </section>
-      <div class="row wrap"><span class="tag green">แผนใหม่ ${nNew}</span>${nUp ? `<span class="tag" style="background:var(--blue-soft);color:#3B5A78">อัปเดต ${nUp}</span>` : ''}${bad.length ? `<span class="tag red">ข้าม ${bad.length}</span>` : ''}<span class="faint">งบรวม ${money(ok.reduce((a, r) => a + r.plan.budget, 0))} บาท</span></div>
+      <div class="row wrap"><span class="tag green">แผนใหม่ ${nNew}</span>${nUp ? `<span class="tag" style="background:var(--blue-soft);color:#0058B0">อัปเดต ${nUp}</span>` : ''}${bad.length ? `<span class="tag red">ข้าม ${bad.length}</span>` : ''}<span class="faint">งบรวม ${money(ok.reduce((a, r) => a + r.plan.budget, 0))} บาท</span></div>
       ${res.length ? `<div class="scroll-x" style="max-height:40vh;border:1px solid var(--line2);border-radius:16px"><table class="tbl"><thead><tr><th>แถว</th><th>หน่วยงาน</th><th>ID CODE</th><th>รหัสงาน</th><th>กิจกรรม</th><th>ชื่องาน</th><th>ช่วง</th><th class="r">งบประมาณ</th><th>ผลตรวจ</th></tr></thead>
-      <tbody>${res.map((r) => `<tr style="background:${r.err ? '#FCF1EC' : ''}"><td>${r.line}</td><td>${esc(r.plan.unit)}</td><td class="num">${esc(r.plan.id_code)}</td><td class="num">${esc(r.plan.work_code)}</td><td class="small">${esc(r.plan.activity)}</td><td class="small">${esc(r.plan.work_name)}</td><td class="small num">${r.segments.map((s) => esc(s.road) + ' ' + kmRange(s)).join('<br>')}</td><td class="r num">${money(r.plan.budget)}</td>
-        <td style="color:${r.err ? 'var(--red)' : r.mode === 'update' ? '#3B5A78' : 'var(--green-ink)'};font-weight:600;white-space:nowrap">${esc(r.err || (r.mode === 'update' ? '↻ อัปเดต ' + r.plan.plan_id + changed(r) : '✓ ใหม่'))}${!r.err && r.warn ? `<br><span class="small" style="color:var(--gold-ink);font-weight:500">⚠ ${esc(r.warn)}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      <tbody>${res.map((r) => `<tr style="background:${r.err ? '#FDECEB' : ''}"><td>${r.line}</td><td>${esc(r.plan.unit)}</td><td class="num">${esc(r.plan.id_code)}</td><td class="num">${esc(r.plan.work_code)}</td><td class="small">${esc(r.plan.activity)}</td><td class="small">${esc(r.plan.work_name)}</td><td class="small num">${r.segments.map((s) => esc(s.road) + ' ' + kmRange(s)).join('<br>')}</td><td class="r num">${money(r.plan.budget)}</td>
+        <td style="color:${r.err ? 'var(--red)' : r.mode === 'update' ? '#0058B0' : 'var(--good-ink)'};font-weight:600;white-space:nowrap">${esc(r.err || (r.mode === 'update' ? '↻ อัปเดต ' + r.plan.plan_id + changed(r) : '✓ ใหม่'))}${!r.err && r.warn ? `<br><span class="small" style="color:var(--gold-ink);font-weight:500">⚠ ${esc(r.warn)}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
       <span class="err" id="im-err"></span>
       <div class="dlg-foot"><button class="btn" id="im-back">เลือกไฟล์ใหม่</button><button class="btn pri" id="im-go" ${ok.length ? '' : 'disabled'}>นำเข้า ${ok.length} แผน</button></div>`;
     $('#im-back', dlg).onclick = () => { st.sheet = null; draw(dlg); };
@@ -657,10 +657,10 @@ export function detail(main, id, app) {
       <section class="card col" style="gap:10px"><h2 style="margin:0">ประวัติการเปลี่ยนสถานะ</h2>${p.logs.length ? p.logs.slice().reverse().map((l) => `<div class="row" style="align-items:flex-start"><span style="width:10px;height:10px;border-radius:50%;background:${esc(statusOf(l.to_status).color)};margin-top:6px;flex-shrink:0"></span><div class="col grow" style="gap:2px"><div class="row"><b class="small grow">${esc(statusOf(l.to_status).name)}</b><span class="faint">${thDateTime(l.at)}</span></div><span class="faint">${esc((userOf(l.by_user) || {}).full_name || l.by_user || '')}</span>${l.reason ? `<span class="small" style="background:var(--gold-soft);color:var(--gold-ink);border-radius:12px;padding:6px 10px;align-self:flex-start">รอบที่ ${esc(l.round_no || '')}: ${esc(l.reason)}</span>` : ''}</div></div>`).join('') : '<span class="faint">ยังไม่มีการเปลี่ยนสถานะ</span>'}</section>
     </div>
     <div class="col" style="gap:14px">
-      <section class="card col" style="background:var(--green);color:#FFFEFB;gap:12px"><div class="row"><h2 class="grow" style="margin:0">อัปเดตสถานะ</h2><span class="small" style="color:#C7CDB8">${mayUpdate ? 'ทุกคนอัปเดตได้ • บันทึกชื่อผู้เปลี่ยน' : 'ผู้เยี่ยมชมดูได้อย่างเดียว'}</span></div>
-        ${mayUpdate ? `${[['สถานะแผน', PL], ['สถานะจัดซื้อจัดจ้าง', PR]].filter((g) => g[1].length).map((g) => `<span class="small" style="color:#C7CDB8">${g[0]}</span><div class="row wrap">${g[1].filter((s) => s.status_code !== p.status).map((s) => `<button class="btn sm" data-to="${esc(s.status_code)}" style="background:transparent;color:#FFFEFB;border-color:#7C8C76">${esc(s.name)}</button>`).join('')}</div>`).join('')}
-        <label class="f" style="color:#DCE0CF">เหตุผล / หมายเหตุ <span id="pd-need"></span><textarea class="inp" id="pd-reason" style="background:#566A51;color:#fff;border-color:#687A62" placeholder="บังคับเมื่อส่งกลับแก้ไข"></textarea></label>
-        <span class="err" id="pd-err" style="color:#F4C9B8"></span><button class="btn" id="pd-go" style="background:var(--gold);border-color:var(--gold);color:#3E4F3B;font-weight:600" disabled>เลือกสถานะก่อน</button>` : '<span class="small" style="color:#DCE0CF">เข้าสู่ระบบด้วยบัญชีบุคลากรเพื่ออัปเดตสถานะ</span>'}
+      <section class="card col" style="background:var(--panel);color:#FFFFFF;gap:12px"><div class="row"><h2 class="grow" style="margin:0">อัปเดตสถานะ</h2><span class="small" style="color:rgba(255,255,255,.72)">${mayUpdate ? 'ทุกคนอัปเดตได้ • บันทึกชื่อผู้เปลี่ยน' : 'ผู้เยี่ยมชมดูได้อย่างเดียว'}</span></div>
+        ${mayUpdate ? `${[['สถานะแผน', PL], ['สถานะจัดซื้อจัดจ้าง', PR]].filter((g) => g[1].length).map((g) => `<span class="small" style="color:rgba(255,255,255,.72)">${g[0]}</span><div class="row wrap">${g[1].filter((s) => s.status_code !== p.status).map((s) => `<button class="btn sm" data-to="${esc(s.status_code)}" style="background:transparent;color:#FFFFFF;border-color:rgba(255,255,255,.35)">${esc(s.name)}</button>`).join('')}</div>`).join('')}
+        <label class="f" style="color:rgba(255,255,255,.72)">เหตุผล / หมายเหตุ <span id="pd-need"></span><textarea class="inp" id="pd-reason" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.22)" placeholder="บังคับเมื่อส่งกลับแก้ไข"></textarea></label>
+        <span class="err" id="pd-err" style="color:#FF9F8F"></span><button class="btn" id="pd-go" style="background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600" disabled>เลือกสถานะก่อน</button>` : '<span class="small" style="color:rgba(255,255,255,.72)">เข้าสู่ระบบด้วยบัญชีบุคลากรเพื่ออัปเดตสถานะ</span>'}
       </section>
       ${p.supervisor || p.contractor ? `<section class="card col" style="gap:4px">${p.supervisor ? `<span class="small"><span class="faint">ผู้ควบคุมงาน:</span> ${esc(p.supervisor)}</span>` : ''}${p.contractor ? `<span class="small"><span class="faint">ผู้รับจ้าง:</span> ${esc(p.contractor)}</span>` : ''}</section>` : ''}
       <section class="card row">${rev ? avatar(rev, 46) : ''}<div class="col grow" style="gap:0"><span class="faint">ผู้ตรวจรับผิดชอบ ${esc(p.unit)}</span><b>${esc(rev ? rev.full_name + ' • ' + rev.position : '— (งานของเขต)')}</b></div></section>
@@ -672,7 +672,7 @@ export function detail(main, id, app) {
   if ($('#pd-km')) $('#pd-km').onclick = () => editHub(p, app, 'km');
   let to = '';
   on(main, '[data-to]', 'click', (e, b) => {
-    to = b.dataset.to; main.querySelectorAll('[data-to]').forEach((x) => { const on_ = x === b; x.style.background = on_ ? '#FFFEFB' : 'transparent'; x.style.color = on_ ? '#3E4F3B' : '#FFFEFB'; });
+    to = b.dataset.to; main.querySelectorAll('[data-to]').forEach((x) => { const on_ = x === b; x.style.background = on_ ? '#FFFFFF' : 'transparent'; x.style.color = on_ ? '#1D1D1F' : '#FFFFFF'; });
     const s = statusOf(to); $('#pd-need').textContent = s.need_reason === true || s.need_reason === 'TRUE' ? '* (ต้องระบุ • นับเป็นรอบส่งกลับ)' : '';
     const g = $('#pd-go'); g.disabled = false; g.textContent = 'ยืนยัน: ' + s.name;
   });

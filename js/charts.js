@@ -19,7 +19,7 @@ export function chart({ cats, series, type, fmt = (v) => String(Math.round(v)), 
 
   if (type === 'donut') {
     const sum = cats.reduce((a, c) => a + tot(c), 0); let acc = 0;
-    const colors = cats.map((c, i) => c.color || ['#4A6B42', '#6585A6', '#D3A04A', '#9A7A9C', '#5A9585', '#C66B3D', '#A39C88', '#C9C1AE'][i % 8]);
+    const colors = cats.map((c, i) => c.color || ['#0071E3', '#007AFF', '#FF9F0A', '#AF52DE', '#30B0C7', '#FF3B30', '#8E8E93', '#C7C7CC'][i % 8]);
     const bg = sum ? `conic-gradient(${cats.map((c, i) => { const f = (acc / sum) * 360; acc += tot(c); return `${colors[i]} ${f.toFixed(2)}deg ${((acc / sum) * 360).toFixed(2)}deg`; }).join(',')})` : 'var(--soft2)';
     return `<div class="row wrap" style="justify-content:center;gap:34px;padding:8px 0"><div class="donut" style="background:${bg}"><div><b style="font-family:var(--head);font-size:26px;font-weight:500">${esc(fmt(sum))}</b><span class="faint">${esc(unit)}</span></div></div>
       <div class="col" style="min-width:230px;gap:8px">${cats.map((c, i) => `<div class="row small" ${click(c)} data-tip="${esc(c.label + '|' + fmt(tot(c)) + ' ' + unit + ' (' + (sum ? Math.round((tot(c) / sum) * 100) : 0) + '%)')}"><i style="width:12px;height:12px;border-radius:3px;background:${colors[i]}"></i><span class="grow">${esc(c.label)}</span><b class="num">${esc(fmt(tot(c)))}</b><span class="faint" style="width:40px;text-align:right">${sum ? Math.round((tot(c) / sum) * 100) : 0}%</span></div>`).join('')}</div></div>`;
@@ -29,7 +29,7 @@ export function chart({ cats, series, type, fmt = (v) => String(Math.round(v)), 
       ${cats.map((c) => `<tr><td><b>${esc(c.label)}</b></td>${c.values.map((v) => `<td class="r">${esc(fmt(v))}</td>`).join('')}${additive && series.length > 1 ? `<td class="r"><b>${esc(fmt(tot(c)))}</b></td>` : ''}</tr>`).join('')}</tbody></table></div>`;
   }
   if (type === 'prog') {   // ค่า 0–100 ต่อหมวด (ใช้ค่าแรก)
-    return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">${cats.map((c) => { const p = Math.max(0, Math.min(100, Math.round(c.values[0]))); return `<button class="card" style="border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;gap:8px" ${click(c)} ${tipAttr(c, 0)}><div class="ring" style="background:conic-gradient(#46703F 0deg ${p * 3.6}deg,#EEE8DC ${p * 3.6}deg 360deg)"><div>${p}%</div></div><b class="small">${esc(c.label)}</b><span class="faint">${esc(c.sub || '')}</span></button>`; }).join('')}</div>`;
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px">${cats.map((c) => { const p = Math.max(0, Math.min(100, Math.round(c.values[0]))); return `<button class="card" style="border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;gap:8px" ${click(c)} ${tipAttr(c, 0)}><div class="ring" style="background:conic-gradient(#30A14E 0deg ${p * 3.6}deg,#E8E8ED ${p * 3.6}deg 360deg)"><div>${p}%</div></div><b class="small">${esc(c.label)}</b><span class="faint">${esc(c.sub || '')}</span></button>`; }).join('')}</div>`;
   }
   const maxCell = Math.max(...cats.flatMap((c) => c.values), 0), maxTot = Math.max(...cats.map(tot), 0);
   const max = unit === '%' ? 100 : nice(((type === 'stack' || (type === 'hbar' && additive)) ? maxTot : maxCell) * 1.05);

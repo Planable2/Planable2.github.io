@@ -113,7 +113,7 @@ async function factorView(main) {
     <span class="faint small">F = F<sub>ล่าง</sub> − (F<sub>ล่าง</sub> − F<sub>บน</sub>) × (ค่างาน − ช่วงล่าง) ÷ (ช่วงบน − ช่วงล่าง)</span></section>` : ''}
   <details class="card"><summary><b>ดูตาราง Factor F ที่ใช้</b> <span class="faint small">เงินล่วงหน้า ${s.adv}% • ประกันผลงาน ${s.ret}% • ดอกเบี้ย 6% • VAT 7%</span></summary>
     <div class="grid fftables">${KINDS.map(([k, l]) => `<div class="scroll-x"><h3>${esc(l)}</h3><table class="tbl"><thead><tr><th>ค่างาน (ล้านบาท)</th>${FF[k].cols.map((c) => `<th class="r">${esc(c)}</th>`).join('')}</tr></thead>
-      <tbody>${FF[k].labels.map((lab, i) => `<tr><td class="num">${esc(lab)}</td>${FF[k].t[key][i].map((v, j) => `<td class="r num" style="${j === colOf(k) ? 'font-weight:700;color:var(--green-ink)' : ''}">${f4(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div></details>`;
+      <tbody>${FF[k].labels.map((lab, i) => `<tr><td class="num">${esc(lab)}</td>${FF[k].t[key][i].map((v, j) => `<td class="r num" style="${j === colOf(k) ? 'font-weight:700;color:var(--accent-ink)' : ''}">${f4(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div></details>`;
   const redraw = () => factorView(main);
   [['adv', 'ff-adv'], ['ret', 'ff-ret'], ['vat', 'ff-vat'], ['rain', 'ff-rain']].forEach(([k, id]) => ($('#' + id).onchange = (e) => { s[k] = Number(e.target.value); redraw(); }));
   // พิมพ์ตัวเลขแล้วคำนวณเมื่อออกจากช่อง/กด Enter (ไม่วาดใหม่ระหว่างพิมพ์ กันเคอร์เซอร์กระโดด)

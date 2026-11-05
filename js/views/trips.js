@@ -5,7 +5,7 @@ import { esc, $, $$, on, toDate, iso, today, TH_MONTH_FULL, TH_DOW, thDate } fro
 import { modal, modalHead, closeModal, toast, busy, avatarStack, icon, empty, calTabs } from '../ui.js';
 
 const ui = S.ui.trip || (S.ui.trip = { y: null, m: null, sel: null });
-const COLOR = '#6585A6';
+const COLOR = '#007AFF';
 const membersOf = (t) => String(t.members || '').split(',').map((s) => s.trim()).filter(Boolean);
 const nick = (id) => { const u = userOf(id); return u ? u.nickname || u.full_name : id; };
 const elevated = () => S.user.is_admin === true || S.user.role === 'หัวหน้า' || S.user.role === 'ธุรการ';

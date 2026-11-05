@@ -40,9 +40,9 @@ export function loginView(root, onDone) {
       <div class="row"><img class="logo" src="icons/logo-tile.png" alt="${esc(CONFIG.ORG_NAME)}" width="52" height="52"></div>
       <div class="col" style="gap:14px">
         <h1>${esc(CONFIG.APP_NAME)}</h1>
-        <p style="margin:0;color:#E0E5D6;line-height:1.7">ติดตามแผนงานทุกแขวงและเขต • ปฏิทินประชุม • คลังเอกสารจาก LINE • งานสั่งการ — ข้อมูลชุดเดียวกันทุกหน้าจอ</p>
+        <p style="margin:0;color:rgba(255,255,255,.72);line-height:1.7">ติดตามแผนงานทุกแขวงและเขต • ปฏิทินประชุม • คลังเอกสารจาก LINE • งานสั่งการ — ข้อมูลชุดเดียวกันทุกหน้าจอ</p>
       </div>
-      <span style="font-size:12px;color:#C7CDB8">${DEMO ? 'โหมดสาธิต: ข้อมูลตัวอย่างเก็บในเครื่องนี้เท่านั้น' : 'เชื่อมต่อฐานข้อมูลแล้ว'}</span>
+      <span style="font-size:12px;color:rgba(255,255,255,.72)">${DEMO ? 'โหมดสาธิต: ข้อมูลตัวอย่างเก็บในเครื่องนี้เท่านั้น' : 'เชื่อมต่อฐานข้อมูลแล้ว'}</span>
     </section>
     <section class="box"><div id="lg">
       <div class="seg-ctl" role="tablist" style="align-self:flex-start"><button class="on" data-tab="staff">บุคลากร</button><button data-tab="guest">ผู้เยี่ยมชม</button></div>
@@ -113,7 +113,7 @@ function registerView(root, idToken, res, onDone) {
     <label class="f">ยืนยันรหัสผ่าน<input class="inp" id="r-p2" type="password" autocomplete="new-password"></label>
     <span class="err" id="r-err"></span>
     <button class="btn pri block" id="r-go">ส่งให้ผู้ดูแลระบบยืนยัน</button>`;
-  on(box, '[data-u]', 'click', (e, b) => { pick = b.dataset.u; box.querySelectorAll('[data-u]').forEach((x) => (x.style.borderColor = x === b ? 'var(--green2)' : 'var(--line)')); });
+  on(box, '[data-u]', 'click', (e, b) => { pick = b.dataset.u; box.querySelectorAll('[data-u]').forEach((x) => (x.style.borderColor = x === b ? 'var(--accent)' : 'var(--line)')); });
   $('#r-go').onclick = async () => {
     const e = $('#r-err'), u = $('#r-u').value.trim(), p = $('#r-p').value, p2 = $('#r-p2').value;
     if (!pick) return (e.textContent = 'กรุณาเลือกชื่อของคุณ');

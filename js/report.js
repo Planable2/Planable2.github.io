@@ -34,7 +34,7 @@ export const uLabel = (n) => String(n || '').replace(/^แขวงทางห�
 /** สถานะสำหรับกราฟตามแบบที่เลือก: แผน = จัดซื้อทั้งหมดนับเป็น "กรมเห็นชอบ" • จัดซื้อ = ก่อนเห็นชอบรวมเป็น "ยังไม่ถึงขั้นจัดซื้อ" */
 export function seriesFor(mode = 'both') {
   if (mode === 'plan') return planStatuses().map((s) => ({ code: s.status_code, name: s.name, color: s.color }));
-  if (mode === 'proc') { const a = approvedStatus(); return [{ code: '__pre', name: 'ยังไม่ถึงขั้นจัดซื้อ', color: '#DDD6C6' }, { code: a.status_code, name: 'รอเริ่มจัดซื้อ (เห็นชอบแล้ว)', color: a.color }].concat(procStatuses().map((s) => ({ code: s.status_code, name: s.name, color: s.color }))); }
+  if (mode === 'proc') { const a = approvedStatus(); return [{ code: '__pre', name: 'ยังไม่ถึงขั้นจัดซื้อ', color: '#E5E5EA' }, { code: a.status_code, name: 'รอเริ่มจัดซื้อ (เห็นชอบแล้ว)', color: a.color }].concat(procStatuses().map((s) => ({ code: s.status_code, name: s.name, color: s.color }))); }
   return statuses().map((s) => ({ code: s.status_code, name: s.name, color: s.color }));
 }
 export function codeFor(p, mode = 'both') {
@@ -62,10 +62,10 @@ export function officeBlocks(set, cols) {
 }
 export const summaryBlock = (set, cols) => ({ title: 'รวมทุกสำนัก', rows: unitsOf(set).map((u) => ({ label: uLabel(u.name), key: u.name, ...tally(set.filter((p) => p.unit === u.name), cols) })), total: tally(set, cols) });
 
-const heatColor = (v, n) => (!n ? '#EEEAE0' : v >= 100 ? '#4E7247' : v >= 75 ? '#86A577' : v >= 50 ? '#B9CBA2' : v >= 25 ? '#E5D7AA' : v > 0 ? '#ECCBAF' : '#E9D6CE');
+const heatColor = (v, n) => (!n ? '#EFEFF4' : v >= 100 ? '#30A14E' : v >= 75 ? '#8FD6A3' : v >= 50 ? '#CDEBD5' : v >= 25 ? '#FFF0C2' : v > 0 ? '#FFE0C2' : '#FBD9D6');
 /** สีอ่อน → ใช้ตัวอักษรเข้ม */
 const light = (hex) => { const n = parseInt(String(hex).replace('#', ''), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) > 170; };
-const heatInk = (v, n) => (n && v >= 75 ? '#fff' : '#2B2A22');
+const heatInk = (v, n) => (n && v >= 100 ? '#fff' : '#1D1D1F');
 
 /* ---------- HTML (หน้าเว็บ) ---------- */
 const hd = (l, s) => `<span class="hl">${esc(l)}</span><span class="hs">${esc(s)}</span>`;
@@ -106,8 +106,8 @@ export function pendingHTML(set, o) {
 }
 
 /* ---------- ภาพรายงาน (canvas) ---------- */
-const W = 1000, PAD = 28, C = { ink: '#2B2A22', muted: '#6E6857', faint: '#A39C88', line: '#E3DCCB', soft: '#F7F4EE', card: '#FDFCF8', green: '#3D5638', bar: '#4E7247', gold: '#F3E9CE', head: '#ECE6D9' };
-const TILE = ['#F7F4EE', '#E6ECF1', '#F6EEDC', '#E3EDE8', '#E6ECDD', '#EDE6EF', '#F2E6DE', '#E4EBEE', '#EEEADC'];
+const W = 1000, PAD = 28, C = { ink: '#1D1D1F', muted: '#6E6E73', faint: '#86868B', line: '#E5E5EA', soft: '#F5F5F7', card: '#FFFFFF', panel: '#1D1D1F', bar: '#0071E3', total: '#F2F2F7', head: '#EFEFF4' };
+const TILE = ['#FFFFFF', '#E8F1FD', '#FFF4E0', '#E3F6F9', '#E6F4EA', '#F3EEFB', '#FDECEB', '#EAF0FF', '#EFEFF4'];
 const FH = "'Mitr', 'IBM Plex Sans Thai Looped', sans-serif", FB = "'IBM Plex Sans Thai Looped', 'Sarabun', sans-serif";
 const font = (ctx, size, w = 400, head = false) => (ctx.font = `${w} ${size}px ${head ? FH : FB}`);
 function text(ctx, s, x, y, { size = 16, w = 400, head = false, color = C.ink, align = 'left', max } = {}) {
@@ -120,11 +120,11 @@ function rrect(ctx, x, y, w, h, r, fill) { ctx.beginPath(); ctx.roundRect ? ctx.
 function wrap(ctx, s, max) { const out = []; let line = ''; for (const ch of String(s)) { if (ctx.measureText(line + ch).width > max && line) { out.push(line); line = ch; } else line += ch; } if (line) out.push(line); return out; }
 
 function header(ctx, meta, title) {
-  rrect(ctx, 0, 0, W, 92, 0, C.green);
+  rrect(ctx, 0, 0, W, 92, 0, C.panel);
   text(ctx, title, PAD, 34, { size: 26, w: 500, head: true, color: '#fff' });
-  text(ctx, `${ORG()} • ปีงบประมาณ ${meta.year}${meta.filter ? ' • ' + meta.filter : ''}`, PAD, 68, { size: 16, color: '#DCE5D3' });
-  text(ctx, `ณ วันที่ ${thDate(new Date())}`, W - PAD, 34, { size: 16, color: '#DCE5D3', align: 'right' });
-  text(ctx, 'Planable2', W - PAD, 68, { size: 14, color: '#AFC0A4', align: 'right' });
+  text(ctx, `${ORG()} • ปีงบประมาณ ${meta.year}${meta.filter ? ' • ' + meta.filter : ''}`, PAD, 68, { size: 16, color: 'rgba(255,255,255,.75)' });
+  text(ctx, `ณ วันที่ ${thDate(new Date())}`, W - PAD, 34, { size: 16, color: 'rgba(255,255,255,.75)', align: 'right' });
+  text(ctx, 'Planable2', W - PAD, 68, { size: 14, color: 'rgba(255,255,255,.5)', align: 'right' });
   return 112;
 }
 function kpis(ctx, y, t, o) {
@@ -141,8 +141,8 @@ function kpis(ctx, y, t, o) {
 }
 function progBar(ctx, y, label, p, sub) {
   text(ctx, label, PAD, y + 10, { size: 14, color: C.muted });
-  text(ctx, p.toFixed(2) + '%', W - PAD, y + 10, { size: 15, w: 600, color: C.green, align: 'right' });
-  rrect(ctx, PAD, y + 22, W - PAD * 2, 10, 5, '#ECE6D9');
+  text(ctx, p.toFixed(2) + '%', W - PAD, y + 10, { size: 15, w: 600, color: C.panel, align: 'right' });
+  rrect(ctx, PAD, y + 22, W - PAD * 2, 10, 5, '#E8E8ED');
   if (p > 0) rrect(ctx, PAD, y + 22, Math.max(10, (W - PAD * 2) * Math.min(1, p / 100)), 10, 5, C.bar);
   if (sub) text(ctx, sub, PAD, y + 46, { size: 13, color: C.faint });
   return y + (sub ? 62 : 44);
@@ -162,7 +162,7 @@ function tableBlock(ctx, y, b, o) {
   const prog = o.prog, bud = o.cols.length <= 7, last = 92, uw = 160;
   const each = (W - PAD * 2 - uw - last - (bud ? 100 : 0)) / o.cols.length;
   const cols = [{ l: 'หน่วยงาน', w: uw, a: 'left' }].concat(o.cols.map((c) => ({ l: c.l, w: each, color: c.color })), bud ? [{ l: 'งบ (ลบ.)', w: 100 }] : [], [{ l: progShort(o.mode, prog), w: last }]);
-  rrect(ctx, PAD, y, W - PAD * 2, 40, 10, C.green);
+  rrect(ctx, PAD, y, W - PAD * 2, 40, 10, C.panel);
   text(ctx, b.title, PAD + 14, y + 20, { size: 18, w: 500, head: true, color: '#fff', max: W - PAD * 2 - 28 });
   y += 40;
   const row = (cells, bg, bold, h = 34, size = 15) => {
@@ -183,7 +183,7 @@ function tableBlock(ctx, y, b, o) {
   y += hh;
   const cellsOf = (r, label) => [label].concat(o.cols.map((c) => (r[c.k] ? Number(r[c.k]).toLocaleString() : '-')), bud ? [r.budget ? mil(r.budget) : '-'] : [], [r.n ? Math.round(pct(r, prog)) + '%' : '-']);
   b.rows.forEach((r, i) => row(cellsOf(r, r.label), i % 2 ? C.soft : C.card));
-  row(cellsOf(b.total, 'รวม'), C.gold, true);
+  row(cellsOf(b.total, 'รวม'), C.total, true);
   const pl = progLabel(o.mode, prog);
   return progBar(ctx, y + 8, `ความก้าวหน้า (${pl})`, pct(b.total, prog), `${pl} ${b.total[prog] || 0} จาก ${b.total.n} แผน • งบประมาณ ${money(b.total.budget)} บาท`) + 14;
 }
@@ -213,7 +213,7 @@ const KINDS = {
     const LW = 170, RW = 120, BW = W - PAD * 2 - LW - RW;
     rows.forEach((r) => {
       text(ctx, r.label, PAD, y + 18, { size: 16, w: 600, max: LW - 10 });
-      rrect(ctx, PAD + LW, y + 6, BW, 24, 8, '#F1ECE1');
+      rrect(ctx, PAD + LW, y + 6, BW, 24, 8, '#E8E8ED');
       let x = PAD + LW; ctx.save(); ctx.beginPath(); ctx.roundRect ? ctx.roundRect(PAD + LW, y + 6, BW, 24, 8) : ctx.rect(PAD + LW, y + 6, BW, 24); ctx.clip();
       r.vals.forEach((v, i) => { const w = (v / max) * BW; if (w > 0) { ctx.fillStyle = ST[i].color; ctx.fillRect(x, y + 6, w, 24); if (w > 26) text(ctx, m.measure === 'budget' ? v.toFixed(0) : String(v), x + w / 2, y + 18, { size: 13, w: 600, color: light(ST[i].color) ? C.ink : '#fff', align: 'center' }); } x += w; });
       ctx.restore();
@@ -275,12 +275,12 @@ const KINDS = {
       const x = PAD + (i % 3) * (cw + 12), yy = y + Math.floor(i / 3) * (h + 12), v = pct(r, m.prog);
       rrect(ctx, x, yy, cw, h, 16, C.soft);
       const cx = x + 52, cy = yy + h / 2;
-      ctx.lineWidth = 10; ctx.strokeStyle = '#ECE6D9'; ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 10; ctx.strokeStyle = '#E8E8ED'; ctx.beginPath(); ctx.arc(cx, cy, 34, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = C.bar; ctx.beginPath(); ctx.arc(cx, cy, 34, -Math.PI / 2, -Math.PI / 2 + (v / 100) * Math.PI * 2); ctx.stroke();
       text(ctx, Math.round(v) + '%', cx, cy, { size: 16, w: 600, align: 'center' });
       text(ctx, r.label, x + 100, yy + 34, { size: 17, w: 600, max: cw - 110 });
       text(ctx, `${r[m.prog]}/${r.n} แผน`, x + 100, yy + 60, { size: 14, color: C.muted });
-      text(ctx, (r.fixN && m.mode !== 'proc' ? `แก้ไข ${r.fixN} • ` : '') + (r.late && m.mode !== 'proc' ? `เลยกำหนด ${r.late}` : `${mil(r.budget)} ลบ.`), x + 100, yy + 84, { size: 13, color: r.late && m.mode !== 'proc' ? '#B4532A' : C.faint, max: cw - 110 });
+      text(ctx, (r.fixN && m.mode !== 'proc' ? `แก้ไข ${r.fixN} • ` : '') + (r.late && m.mode !== 'proc' ? `เลยกำหนด ${r.late}` : `${mil(r.budget)} ลบ.`), x + 100, yy + 84, { size: 13, color: r.late && m.mode !== 'proc' ? '#C9291E' : C.faint, max: cw - 110 });
     });
     y += Math.ceil(rows.length / 3) * (h + 12) + 4;
     return footer(ctx, y);
@@ -294,7 +294,7 @@ async function render(kind, set, meta) {
   const S = 2, cv = document.createElement('canvas');
   cv.width = W * S; cv.height = H * S;
   const ctx = cv.getContext('2d'); ctx.scale(S, S);
-  ctx.fillStyle = '#F2EFE8'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#F5F5F7'; ctx.fillRect(0, 0, W, H);
   KINDS[kind].draw(ctx, set, meta);
   return cv;
 }

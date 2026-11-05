@@ -5,7 +5,7 @@ import { esc, $, on, thDateTime, truthy, debounce } from '../util.js';
 import { modal, modalHead, closeModal, toast, busy, icon, empty } from '../ui.js';
 
 const ui = { cat: 'inbox', q: '', rcat: 'all', rq: '' };
-const EXT = { pdf: ['PDF', '#A8432A', '#F6E4DA'], docx: ['DOC', '#3B5A78', '#E9EFF5'], doc: ['DOC', '#3B5A78', '#E9EFF5'], xlsx: ['XLS', '#2F6657', '#E5F0EC'], xls: ['XLS', '#2F6657', '#E5F0EC'] };
+const EXT = { pdf: ['PDF', '#C9291E', '#FDECEB'], docx: ['DOC', '#0058B0', '#E8F1FD'], doc: ['DOC', '#0058B0', '#E8F1FD'], xlsx: ['XLS', '#1F7A3A', '#E6F4EA'], xls: ['XLS', '#1F7A3A', '#E6F4EA'] };
 const kinds = () => cfg('DocKinds').filter((k) => truthy(k.active) || k.active === '');
 const LINK = { meeting: 'ประชุม', plan: 'แผนงาน', order: 'งานสั่งการ' };
 const size = (b) => (b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.round(b / 1e3) + ' KB');
@@ -37,7 +37,7 @@ function linkLabel(f) {
 }
 
 function row(f) {
-  const e = EXT[String(f.ext).toLowerCase()] || ['FILE', '#57524A', '#EFEBE2'];
+  const e = EXT[String(f.ext).toLowerCase()] || ['FILE', '#6E6E73', '#F5F5F7'];
   const by_ = userOf(f.sent_by);
   return `<div class="row" style="padding:12px 18px;border-top:1px solid var(--line2);align-items:flex-start">
     <span style="width:40px;height:48px;border-radius:12px;background:${e[2]};color:${e[1]};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${e[0]}</span>
@@ -95,7 +95,7 @@ function refView(main, app) {
   const cats = refCats(), shown = ui.rcat === 'all' ? cats.filter((c) => list.some((d) => d.category === c)) : [ui.rcat];
   const tool = (c) => (REF_CATS.find((x) => x[0] === c) || [])[1];
   const doc = (d) => {
-    const e = EXT[String(d.ext).toLowerCase()] || (d.drive_file_id ? ['FILE', '#57524A', '#EFEBE2'] : ['LINK', '#33502F', '#E7EEDF']);
+    const e = EXT[String(d.ext).toLowerCase()] || (d.drive_file_id ? ['FILE', '#6E6E73', '#F5F5F7'] : ['LINK', '#1F7A3A', '#E6F4EA']);
     const by_ = userOf(d.created_by);
     return `<div class="row" style="padding:12px 18px;border-top:1px solid var(--line2);align-items:flex-start">
       <span style="width:40px;height:48px;border-radius:12px;background:${e[2]};color:${e[1]};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${e[0]}</span>
@@ -132,7 +132,7 @@ function refForm(d, main, app) {
       <label class="f">ชื่อเอกสาร *<input class="inp" id="rf-title" value="${esc(f.title)}" placeholder="เช่น หลักเกณฑ์การคำนวณราคากลางงานก่อสร้าง ปี 2569"></label>
       <label class="f">หมายเหตุ<input class="inp" id="rf-note" value="${esc(f.note || '')}" placeholder="เช่น หนังสือ กค 0433.2/ว 481 ลว. 26 มิ.ย. 69"></label>
       <div class="seg-ctl" style="align-self:flex-start"><button data-m="file" class="${mode === 'file' ? 'on' : ''}">อัปโหลดไฟล์</button><button data-m="link" class="${mode === 'link' ? 'on' : ''}">ใส่ลิงก์</button></div>
-      ${mode === 'file' ? `<label class="col center" style="border:2px dashed #B8C7AE;background:#F7F9F3;border-radius:20px;padding:22px;cursor:pointer;align-items:center;gap:4px">${icon('up', 28)}<b class="small">${file ? esc(file.name) + ' • ' + size(file.size) : d && d.drive_file_id ? 'เลือกไฟล์ใหม่เพื่อแทนที่ (ไม่เลือก = ใช้ไฟล์เดิม)' : 'เลือกไฟล์ PDF / Word / Excel'}</b>${d && d.file_name && !file ? `<span class="faint">ไฟล์เดิม: ${esc(d.file_name)}</span>` : ''}<input type="file" id="rf-file" hidden></label>`
+      ${mode === 'file' ? `<label class="col center" style="border:2px dashed #C7C7CC;background:#F5F5F7;border-radius:20px;padding:22px;cursor:pointer;align-items:center;gap:4px">${icon('up', 28)}<b class="small">${file ? esc(file.name) + ' • ' + size(file.size) : d && d.drive_file_id ? 'เลือกไฟล์ใหม่เพื่อแทนที่ (ไม่เลือก = ใช้ไฟล์เดิม)' : 'เลือกไฟล์ PDF / Word / Excel'}</b>${d && d.file_name && !file ? `<span class="faint">ไฟล์เดิม: ${esc(d.file_name)}</span>` : ''}<input type="file" id="rf-file" hidden></label>`
         : `<label class="f">ลิงก์เอกสาร *<input class="inp" id="rf-url" value="${esc(d && !d.drive_file_id ? d.url : f.url || '')}" placeholder="https://drive.google.com/…"></label>`}
       <span class="err" id="rf-err"></span>
       <div class="dlg-foot">${d ? '<button class="btn danger" id="rf-del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="rf-save">บันทึก</button></div>`;

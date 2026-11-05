@@ -40,10 +40,10 @@ function card(o, s, SL) {
   const idx = SL.findIndex((x) => x.code === o.status), prev = SL[idx - 1], next = SL[idx + 1];
   const mayMove = ids.includes(me) || can('record_order');
   const dueTxt = done ? 'เสร็จแล้ว' : !o.due_date ? 'ไม่มีกำหนด' : diff < 0 ? 'เลยกำหนด ' + -diff + ' วัน' : diff === 0 ? 'ครบกำหนดวันนี้' : 'กำหนด ' + thDate(o.due_date) + ' (อีก ' + diff + ' วัน)';
-  const edge = done ? '#B8C7AE' : diff < 0 ? '#C8735A' : diff <= 3 ? '#D3A04A' : 'var(--line)';
+  const edge = done ? '#C7C7CC' : diff < 0 ? '#FF3B30' : diff <= 3 ? '#FF9F0A' : 'var(--line)';
   const file = o.file_id ? S.db.Files.find((f) => f.file_id === o.file_id) : null;
   return `<article class="item" style="--edge:${edge}">
-    <div class="row small"><span class="muted grow">${esc(o.doc_no)}</span><span style="color:${done ? 'var(--green-ink)' : diff < 0 ? 'var(--red)' : diff <= 3 ? 'var(--gold-ink)' : 'var(--muted)'};font-weight:${!done && diff <= 3 ? 600 : 400}">${esc(dueTxt)}</span></div>
+    <div class="row small"><span class="muted grow">${esc(o.doc_no)}</span><span style="color:${done ? 'var(--good-ink)' : diff < 0 ? 'var(--red)' : diff <= 3 ? 'var(--gold-ink)' : 'var(--muted)'};font-weight:${!done && diff <= 3 ? 600 : 400}">${esc(dueTxt)}</span></div>
     <b style="font-family:var(--head);font-weight:500">${esc(o.title)}</b>
     <span class="small muted">ข้อสั่งการ: ${esc(o.instruction || '—')} • สั่งโดย ${esc((userOf(o.ordered_by) || {}).full_name || o.ordered_by || '—')}</span>
     <div class="row">${avatarStack(ids, 28)}<span class="faint grow">${esc(ids.map((i) => (i === me ? 'คุณ' : (userOf(i) || {}).full_name || i)).join(', '))}</span>${file ? `<a href="${esc(file.drive_url)}" target="_blank" rel="noopener" title="${esc(file.name)}">${icon('file', 18)}</a>` : ''}</div>

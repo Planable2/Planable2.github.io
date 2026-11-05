@@ -7,7 +7,7 @@ import { modal, modalHead, closeModal, toast, busy, avatar, avatarStack, icon, e
 
 const ui = S.ui.cal || (S.ui.cal = { y: null, m: null, sel: null });   // ใช้ร่วมกับหน้าวันลา: สลับแล้วยังอยู่เดือนเดิม
 const kinds = () => cfg('MeetKinds').filter((k) => truthy(k.active) || k.active === '');
-const kindOf = (id) => cfg('MeetKinds').find((k) => k.kind_id === id) || { name: id, color: '#A39C88' };
+const kindOf = (id) => cfg('MeetKinds').find((k) => k.kind_id === id) || { name: id, color: '#8E8E93' };
 const STAT = { normal: '', moved: 'เลื่อน', cancelled: 'ยกเลิก' };
 
 export function view(main, arg, app) {
@@ -86,7 +86,7 @@ function form(m, app) {
     <div class="col"><div class="row small muted"><span class="grow">ผู้เข้าร่วม (${f.att.length})</span><button class="chip" id="mf-all">ทุกคนในส่วน</button></div>
       <div class="row wrap">${people.map((u) => `<button class="chip ${f.att.includes(u.user_id) ? 'on' : ''}" data-u="${esc(u.user_id)}" style="padding-left:3px">${avatar(u, 26)}${esc(u.user_id === S.user.user_id ? 'คุณ' : u.full_name)}</button>`).join('')}</div></div>
     ${!isNew ? `<label class="f">สถานะ<select class="inp" data-k="status">${Object.entries({ normal: 'ปกติ', moved: 'เลื่อน', cancelled: 'ยกเลิก' }).map(([v, l]) => `<option value="${v}" ${f.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>` : ''}
-    <label class="row small"><input type="checkbox" id="mf-notify" ${f.notify_line !== false ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--green2)">แจ้งกลุ่ม LINE (บอทส่งทันที + เตือนก่อนประชุม)</label>
+    <label class="row small"><input type="checkbox" id="mf-notify" ${f.notify_line !== false ? 'checked' : ''} style="width:20px;height:20px;accent-color:var(--accent)">แจ้งกลุ่ม LINE (บอทส่งทันที + เตือนก่อนประชุม)</label>
     <span class="err" id="mf-err"></span>
     <div class="dlg-foot">${!isNew ? '<button class="btn danger" id="mf-del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" data-dismiss>ยกเลิก</button><button class="btn pri" id="mf-save">บันทึก</button></div>`;
     $$('[data-k]', dlg).forEach((el) => (el.oninput = el.onchange = () => (f[el.dataset.k] = el.value)));

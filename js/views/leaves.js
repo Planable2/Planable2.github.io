@@ -6,7 +6,7 @@ import { modal, modalHead, closeModal, toast, busy, avatar, icon, empty, calTabs
 
 const ui = S.ui.cal || (S.ui.cal = { y: null, m: null, sel: null });
 const kinds = () => cfg('LeaveKinds').filter((k) => truthy(k.active) || k.active === '');
-const kindOf = (id) => cfg('LeaveKinds').find((k) => k.kind_id === id) || { name: id, color: '#A39C88' };
+const kindOf = (id) => cfg('LeaveKinds').find((k) => k.kind_id === id) || { name: id, color: '#8E8E93' };
 const canManage = (l) => S.user.is_admin === true || S.user.role === 'หัวหน้า' || S.user.role === 'ธุรการ' || l.user_id === S.user.user_id;
 const within = (day, l) => day >= l.date_from && day <= l.date_to;
 

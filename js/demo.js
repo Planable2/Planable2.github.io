@@ -1,6 +1,6 @@
 // ===== โหมดสาธิต: เลียนแบบ API ของ Apps Script ด้วยข้อมูลตัวอย่างในเครื่อง (localStorage) =====
 // โครงตาราง/ชื่อคอลัมน์ตรงกับไฟล์ ฐานข้อมูล_ระบบงานฝ่ายแผนงาน.xlsx ทุกตัว
-const KEY = 'plan-app-demo-v4';
+const KEY = 'plan-app-demo-v5';
 const pad = (n, l = 4) => String(n).padStart(l, '0');
 const nowIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1, 2)}-${pad(d.getDate(), 2)}T${pad(d.getHours(), 2)}:${pad(d.getMinutes(), 2)}:00`; };
 const T = (v) => v === true || v === 'TRUE';
@@ -13,13 +13,13 @@ function seed() {
     cfg_Units: UNITS.map((n, i) => ({ unit_id: 'U0' + (i + 1), name: n, short: i ? 'ข.' + i : 'เขต', kind: i ? 'แขวง' : 'เขต', province: ['แพร่', 'แพร่', 'แพร่', 'น่าน', 'น่าน', 'พะเยา', 'เชียงราย'][i], reviewer_id: REV[n], sort: i + 1, active: true })),
     cfg_Offices: OFF.map((n, i) => ({ office_id: 'O0' + (i + 1), short: n, full: n, scope: n === 'สร. (งานอาคาร)' ? 'เขต และแขวง' : 'เฉพาะแขวง', has_round: i < 5, sort: i + 1, active: true })),
     cfg_Rounds: [['สผ.', '2026-10-10'], ['สร.', '2026-10-31'], ['สร. (งานอาคาร)', '2026-10-31'], ['สป.', '2026-10-20'], ['สบ.', '2026-10-25']].map((r, i) => ({ round_id: 'R0' + (i + 1), fiscal_year: 2570, office: r[0], name: 'รอบ 1', due_date: r[1], remind_days: 3, active: true })),
-    cfg_Status: [['s0', 'อยู่ระหว่างจัดทำ', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของเขต', false], ['s1', 'รอแขวงส่ง', '#C9C1AE', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของแขวง', false], ['s2', 'แขวงส่งแล้ว', '#6585A6', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s3', 'ระหว่างแก้ไข', '#D3A04A', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', true], ['s4', 'ส่งกรมแล้ว', '#5A9585', 'ส่งกรมแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s5', 'กรมเห็นชอบ', '#46703F', 'กรมเห็นชอบ', 'ผู้ตรวจ', 'ทั้งหมด', false],
+    cfg_Status: [['s0', 'อยู่ระหว่างจัดทำ', '#C7C7CC', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของเขต', false], ['s1', 'รอแขวงส่ง', '#C7C7CC', 'ยังไม่ส่ง', 'ธุรการ', 'แผนของแขวง', false], ['s2', 'แขวงส่งแล้ว', '#007AFF', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s3', 'ระหว่างแก้ไข', '#FF9F0A', 'แขวงส่งแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', true], ['s4', 'ส่งกรมแล้ว', '#30B0C7', 'ส่งกรมแล้ว', 'ผู้ตรวจ', 'ทั้งหมด', false], ['s5', 'กรมเห็นชอบ', '#30A14E', 'กรมเห็นชอบ', 'ผู้ตรวจ', 'ทั้งหมด', false],
       // สถานะจัดซื้อจัดจ้าง (dash_group อื่นนอกจาก 4 กลุ่มสถานะแผน)
-      ['s6', 'ร่าง TOR', '#B98A5E', 'ร่าง TOR', '', '', false], ['s7', 'ออกประกาศ', '#8C76A6', 'ออกประกาศ', '', '', false], ['s8', 'ได้ตัวผู้รับจ้าง', '#5D8AA8', 'ได้ตัวผู้รับจ้าง', '', '', false], ['s9', 'อนุมัติเงินงวด', '#5E9A8A', 'อนุมัติเงินงวด', '', '', false], ['s10', 'ลงนามสัญญา', '#3E6B55', 'ลงนามสัญญา', '', '', false]]
+      ['s6', 'ร่าง TOR', '#A2845E', 'ร่าง TOR', '', '', false], ['s7', 'ออกประกาศ', '#AF52DE', 'ออกประกาศ', '', '', false], ['s8', 'ได้ตัวผู้รับจ้าง', '#5856D6', 'ได้ตัวผู้รับจ้าง', '', '', false], ['s9', 'อนุมัติเงินงวด', '#32ADE6', 'อนุมัติเงินงวด', '', '', false], ['s10', 'ลงนามสัญญา', '#1F7A3A', 'ลงนามสัญญา', '', '', false]]
       .map((r, i) => ({ status_code: r[0], name: r[1], color: r[2], dash_group: r[3], who: r[4], scope: r[5], need_reason: r[6], sort: i })),
-    cfg_MeetKinds: [['meet', 'ประชุม', '#6585A6', false, false, false], ['online', 'ประชุมออนไลน์', '#5A9585', true, false, false], ['field', 'กิจกรรม / ลงพื้นที่', '#D3A04A', false, false, true], ['inspect', 'ตรวจรับงาน', '#9A7A9C', false, true, true]]
+    cfg_MeetKinds: [['meet', 'ประชุม', '#007AFF', false, false, false], ['online', 'ประชุมออนไลน์', '#30B0C7', true, false, false], ['field', 'กิจกรรม / ลงพื้นที่', '#FF9F0A', false, false, true], ['inspect', 'ตรวจรับงาน', '#AF52DE', false, true, true]]
       .map((r) => ({ kind_id: r[0], name: r[1], color: r[2], has_link: r[3], link_plan: r[4], offsite: r[5], active: true })),
-    cfg_OrderStatus: [{ code: 'ack', name: 'รับทราบ', color: '#6585A6', is_done: false, sort: 1 }, { code: 'doing', name: 'กำลังทำ', color: '#D3A04A', is_done: false, sort: 2 }, { code: 'done', name: 'เสร็จ', color: '#46703F', is_done: true, sort: 3 }],
+    cfg_OrderStatus: [{ code: 'ack', name: 'รับทราบ', color: '#007AFF', is_done: false, sort: 1 }, { code: 'doing', name: 'กำลังทำ', color: '#FF9F0A', is_done: false, sort: 2 }, { code: 'done', name: 'เสร็จ', color: '#30A14E', is_done: true, sort: 3 }],
     cfg_DocKinds: [['D01', 'หนังสือประชุม', 'ประชุม/{ปี}/{เดือน}', 'ประชุม'], ['D02', 'แผนงาน', 'แผนงาน/{ปีงบ}/{หน่วยงาน}', 'แผนงาน'], ['D03', 'ราคาสืบ', 'ราคาสืบ/{ปี}/{เดือน}', 'ไม่ผูก'], ['D04', 'งานสั่งการ', 'งานสั่งการ/{ปี}', 'งานสั่งการ'], ['D05', 'เอกสารทั่วไป', 'ทั่วไป/{ปี}', 'ไม่ผูก']]
       .map((r) => ({ kind_id: r[0], name: r[1], drive_folder: r[2], link_to: r[3], active: true })),
     cfg_Roles: [['หัวหน้า', 1, 0, 1, 1, 1, 1, 1], ['ธุรการ', 1, 1, 0, 1, 1, 1, 1], ['วิศวกร', 1, 1, 1, 0, 0, 1, 1], ['นายช่าง', 1, 1, 1, 0, 0, 1, 0], ['เจ้าหน้าที่', 1, 0, 0, 0, 0, 0, 0],
@@ -34,7 +34,7 @@ function seed() {
         .map((n, i) => ({ item_id: 'Q' + pad(i + 1, 2), kind: 'quarry', name: n, unit: 'บาท/ลบ.ม.', tpso_code: '', sort: i + 1, active: true }))),
     cfg_Notify: [{ key: 'meet_new', name: 'ประชุมใหม่ / เลื่อน / ยกเลิก', value: 'ทันที', active: true }, { key: 'meet_morning', name: 'สรุปประชุมประจำวัน', value: '07:30', active: true }, { key: 'meet_before', name: 'เตือนก่อนประชุม', value: '30 นาที', active: true }, { key: 'file_reply', name: 'ตอบกลับเมื่อมีไฟล์ในกลุ่ม', value: 'ลิงก์ Drive + ลิงก์เว็บ', active: true }, { key: 'orders', name: 'งานสั่งการ', value: 'ไม่แจ้งใน LINE', active: false }],
     cfg_Settings: [{ key: 'current_fiscal_year', value: 'auto', note: 'auto = คำนวณจากวันที่' }, { key: 'fiscal_start', value: '01-10', note: '' }, { key: 'lock_closed_years', value: 'TRUE', note: '' }, { key: 'fuel_provinces', value: 'แพร่, น่าน, พะเยา, เชียงราย, กรุงเทพฯ', note: '' }, { key: 'fuel_types', value: 'ดีเซล, แก๊สโซฮอล์ 95', note: '' }],
-    cfg_LeaveKinds: [['sick', 'ลาป่วย', '#C96B5B'], ['personal', 'ลากิจส่วนตัว', '#D3A04A'], ['vacation', 'ลาพักผ่อน', '#5A9585'], ['maternity', 'ลาคลอดบุตร', '#9A7A9C'], ['ordain', 'ลาอุปสมบท', '#6585A6'], ['other', 'อื่นๆ', '#8C8475']]
+    cfg_LeaveKinds: [['sick', 'ลาป่วย', '#FF3B30'], ['personal', 'ลากิจส่วนตัว', '#FF9F0A'], ['vacation', 'ลาพักผ่อน', '#30B0C7'], ['maternity', 'ลาคลอดบุตร', '#AF52DE'], ['ordain', 'ลาอุปสมบท', '#007AFF'], ['other', 'อื่นๆ', '#8E8E93']]
       .map((r) => ({ kind_id: r[0], name: r[1], color: r[2], active: true }))
   };
   const av = (k) => 'icons/avatars/av-' + k + '.svg';
